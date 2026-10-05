@@ -8,3 +8,10 @@ allowBuilds:
 auditConfig:
   ignoreGhsas:
     - GHSA-vfj7-8cjw-p6xm
+overrides:
+  # @stellar/stellar-sdk@16.3.1 (a dependency of @x402/stellar and
+  # vellar-cli, both pinned to 2.22.0/0.1.1 per docs/decisions.md)
+  # bundles a vulnerable axios. Our own direct @stellar/stellar-sdk@17.2.1
+  # already resolves axios@1.20.0 (patched); force the same version
+  # everywhere so the 16.x branch isn't left on the vulnerable one.
+  axios: ^1.20.0
