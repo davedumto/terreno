@@ -1,0 +1,53 @@
+# Planning docs - never commit, never push
+build-prompt.md
+technical-doc.md
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Next.js
+.next/
+out/
+
+# Build output
+dist/
+build/
+
+# Turbo
+.turbo/
+
+# Rust / Soroban
+target/
+contracts/**/target/
+.soroban/
+.stellar/
+contracts/**/.soroban/
+contracts/**/.stellar/
+contracts/**/test_snapshots/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# OS
+.DS_Store
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Misc
+*.tsbuildinfo
+.vercel

@@ -1,0 +1,36 @@
+{
+  "name": "web",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@terreno/shared": "workspace:*",
+    "next": "16.3.8",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "^4.6.5",
+    "drizzle-orm": "^0.45.3",
+    "@libsql/client": "^0.18.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@types/node": "^22.10.2",
+    "typescript": "^5.9.3",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.3.8",
+    "drizzle-kit": "^0.31.11",
+    "vitest": "^5.0.3"
+  }
+}

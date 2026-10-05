@@ -1,0 +1,24 @@
+{
+  "name": "@terreno/mcp",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "bin": {
+    "terreno-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo no-op",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@terreno/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.3"
+  }
+}
