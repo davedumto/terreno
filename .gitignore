@@ -40,6 +40,7 @@ pnpm-debug.log*
 .vscode/*
 !.vscode/extensions.json
 .idea/
+.claude/
 
 # OS
 .DS_Store
@@ -51,3 +52,5 @@ coverage/
 # Misc
 *.tsbuildinfo
 .vercel
+.probe*.mjs
+.probe*.ts

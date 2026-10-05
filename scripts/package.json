@@ -1,0 +1,20 @@
+{
+  "name": "scripts",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "echo no-op",
+    "e2e:escrow": "tsx e2e-escrow-testnet.ts"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "17.2.1",
+    "web": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

@@ -15,22 +15,23 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "@stellar/stellar-sdk": "17.2.1",
     "@terreno/shared": "workspace:*",
+    "drizzle-orm": "^0.45.3",
     "next": "16.3.8",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "zod": "^4.6.5",
-    "drizzle-orm": "^0.45.3",
-    "@libsql/client": "^0.18.0"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
-    "@types/node": "^22.10.2",
-    "typescript": "^5.9.3",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9.39.5",
     "eslint-config-next": "16.3.8",
-    "drizzle-kit": "^0.31.11",
+    "typescript": "^5.9.3",
     "vitest": "^5.0.3"
   }
 }
