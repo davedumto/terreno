@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DEADLINE_MINUTES_MAX, DEADLINE_MINUTES_MIN, MAX_QUESTION_LENGTH, MAX_SOURCE_TEXT_LENGTH } from "./constants.js";
+import { DEADLINE_MINUTES_MAX, DEADLINE_MINUTES_MIN, MAX_QUESTION_LENGTH, MAX_SOURCE_TEXT_LENGTH } from "./constants";
 
 // ISO 3166-1 alpha-2 country codes this project currently routes to.
 // SPEC.md section 1: Nigeria, Chile, Costa Rica.

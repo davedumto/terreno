@@ -1,15 +1,33 @@
-import { drizzle } from "drizzle-orm/libsql";
-import * as schema from "./schema.js";
+import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
+import * as schema from "./schema";
 
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) {
-  throw new Error("DATABASE_URL is not set");
+type Schema = typeof schema;
+
+// Lazy: Next.js collects route metadata at build time by importing every
+// route module, even ones that won't run during the build. Throwing here
+// eagerly (e.g. for a missing DATABASE_URL) would fail the whole build
+// rather than the request that actually needs the database.
+let instance: LibSQLDatabase<Schema> | undefined;
+
+function createDb(): LibSQLDatabase<Schema> {
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    throw new Error("DATABASE_URL is not set");
+  }
+  return drizzle({
+    connection: {
+      url: databaseUrl,
+      authToken: process.env.DATABASE_AUTH_TOKEN,
+    },
+    schema,
+  });
 }
 
-export const db = drizzle({
-  connection: {
-    url: databaseUrl,
-    authToken: process.env.DATABASE_AUTH_TOKEN,
+export const db: LibSQLDatabase<Schema> = new Proxy({} as LibSQLDatabase<Schema>, {
+  get(_target, prop, receiver) {
+    if (!instance) {
+      instance = createDb();
+    }
+    return Reflect.get(instance, prop, receiver);
   },
-  schema,
 });

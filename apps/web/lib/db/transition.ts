@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
-import { tasks, taskEvents } from "./schema.js";
+import { tasks, taskEvents } from "./schema";
 import { ulid } from "ulid";
 
 export type TaskStatus = (typeof tasks.$inferSelect)["status"];

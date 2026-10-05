@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkPriceSchema, translateSchema, verifyPlaceSchema } from "./task-schemas.js";
+import { checkPriceSchema, translateSchema, verifyPlaceSchema } from "./task-schemas";
 
 describe("verifyPlaceSchema", () => {
   const validBody = {

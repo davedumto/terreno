@@ -1,2 +1,2 @@
-export * from "./constants.js";
-export * from "./task-schemas.js";
+export * from "./constants";
+export * from "./task-schemas";

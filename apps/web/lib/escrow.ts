@@ -123,6 +123,19 @@ function throwIfErr<T>(result: Result<T>, messageToCode: Map<string, number>): T
   return result.unwrap();
 }
 
+interface SentTransactionLike<T> {
+  result: Result<T>;
+  sendTransactionResponse?: { hash: string };
+}
+
+function requireTxHash<T>(sent: SentTransactionLike<T>): string {
+  const hash = sent.sendTransactionResponse?.hash;
+  if (!hash) {
+    throw new Error("escrow transaction sent but no transaction hash was returned");
+  }
+  return hash;
+}
+
 /**
  * Moves `amount` from the treasury into escrow under `id`, status Locked.
  * Requires both admin and treasury authorization (SPEC.md section 8: the
@@ -134,7 +147,7 @@ export async function createTask(
   payer: string,
   amount: bigint,
   deadline: bigint,
-): Promise<void> {
+): Promise<{ txHash: string }> {
   const { client, messageToCode } = await getClient(config);
   const tx = await client.create_task({ id, payer, amount, deadline });
 
@@ -143,30 +156,38 @@ export async function createTask(
 
   const sent = await tx.signAndSend();
   throwIfErr(sent.result, messageToCode);
+  return { txHash: requireTxHash(sent) };
 }
 
 /** Locked or Assigned to Assigned. Admin-authorized, reassign allowed before release. */
-export async function assign(config: EscrowConfig, id: Buffer, worker: string): Promise<void> {
+export async function assign(
+  config: EscrowConfig,
+  id: Buffer,
+  worker: string,
+): Promise<{ txHash: string }> {
   const { client, messageToCode } = await getClient(config);
   const tx = await client.assign({ id, worker });
   const sent = await tx.signAndSend();
   throwIfErr(sent.result, messageToCode);
+  return { txHash: requireTxHash(sent) };
 }
 
 /** Assigned to Locked, when a claim expires. Admin-authorized. */
-export async function unassign(config: EscrowConfig, id: Buffer): Promise<void> {
+export async function unassign(config: EscrowConfig, id: Buffer): Promise<{ txHash: string }> {
   const { client, messageToCode } = await getClient(config);
   const tx = await client.unassign({ id });
   const sent = await tx.signAndSend();
   throwIfErr(sent.result, messageToCode);
+  return { txHash: requireTxHash(sent) };
 }
 
 /** Assigned to Released; pays amount minus fee to the worker, fee to treasury. Admin-authorized. */
-export async function release(config: EscrowConfig, id: Buffer): Promise<void> {
+export async function release(config: EscrowConfig, id: Buffer): Promise<{ txHash: string }> {
   const { client, messageToCode } = await getClient(config);
   const tx = await client.release({ id });
   const sent = await tx.signAndSend();
   throwIfErr(sent.result, messageToCode);
+  return { txHash: requireTxHash(sent) };
 }
 
 /**
@@ -176,11 +197,12 @@ export async function release(config: EscrowConfig, id: Buffer): Promise<void> {
  * non-admin calling early fails with a host-level authorization error,
  * not an EscrowError (see docs/decisions.md, 2026-10-05).
  */
-export async function refund(config: EscrowConfig, id: Buffer): Promise<void> {
+export async function refund(config: EscrowConfig, id: Buffer): Promise<{ txHash: string }> {
   const { client, messageToCode } = await getClient(config);
   const tx = await client.refund({ id });
   const sent = await tx.signAndSend();
   throwIfErr(sent.result, messageToCode);
+  return { txHash: requireTxHash(sent) };
 }
 
 /** Read-only; no authorization required. */

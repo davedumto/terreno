@@ -3,10 +3,10 @@ import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { ulid } from "ulid";
-import * as schema from "./schema.js";
-import { tasks, taskEvents, workers } from "./schema.js";
+import * as schema from "./schema";
+import { tasks, taskEvents, workers } from "./schema";
 import { eq } from "drizzle-orm";
-import { transition, TransitionError, type Task, type TaskStatus } from "./transition.js";
+import { transition, TransitionError, type Task, type TaskStatus } from "./transition";
 
 async function freshDb() {
   const client = createClient({ url: ":memory:" });
