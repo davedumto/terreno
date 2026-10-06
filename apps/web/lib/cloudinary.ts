@@ -60,10 +60,9 @@ export async function uploadTaskPhoto(
     });
     return { publicId: result.public_id, url: result.secure_url };
   } catch (err) {
-    throw new PhotoUploadError(
-      err instanceof Error ? err.message : "Cloudinary upload failed",
-      "upload_failed",
-    );
+    const message = err instanceof Error ? err.message : "Cloudinary upload failed";
+    console.error("cloudinary upload failed:", message);
+    throw new PhotoUploadError(message, "upload_failed");
   }
 }
 

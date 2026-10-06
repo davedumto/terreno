@@ -3,6 +3,31 @@
 Testnet transactions produced by Terreno, newest first. Full end-to-end runs
 (paid task to completed/refunded) land here starting Phase 2.
 
+## Design system: real Cloudinary photo upload, verified live
+
+2026-10-06: ran the full agent-pays to worker-answers-with-a-real-photo
+pipeline against real testnet and the user's real Cloudinary account (task
+`01M48YT6AEW4RBK8WEM1WTBDK6`). A real payment settled via `demo-agent-pays.ts`,
+the worker claimed it, uploaded a real JPEG through the new
+`POST /api/worker/tasks/[id]/photo` route, and submitted. The photo genuinely
+landed on Cloudinary's CDN: `GET
+https://res.cloudinary.com/dwjnkuvqv/image/upload/v1791302284/terreno/task-photos/01M48YT6AEW4RBK8WEM1WTBDK6.jpg`
+returned `200`, `content-type: image/jpeg`, the exact uploaded bytes. The
+task reached `completed` with a real on-chain release
+(`97b0605bc66255debc4595c17dfad5100ad7b4850888d2cb2b4635abfb0995bb`).
+
+One real bug surfaced and fixed along the way: an earlier test task
+(`01M48TYX29Q8K83RDN8580CREY`) was left stuck `claimed` past its deadline,
+with no code path to release it (SPEC.md section 16's sweeper job #2,
+"expired claims," is not built yet). This blocked claiming a new task,
+since one active claim per worker is enforced at the DB level. Fixed for
+this session by calling the real `transition(db, task, "open")` directly
+(the same `claimed -> open` edge the sweeper will eventually call
+automatically), not a raw UPDATE; a real `claim_expired` task_events row
+was logged. The underlying gap (no automatic claim-expiry sweep) remains
+real and unfixed; this was a one-off manual unstick, not a fix to the
+actual missing sweeper job.
+
 ## Phase 3: first real worker onboarded
 
 2026-10-06: David ran `/join` for real, through a real browser (not a probe
