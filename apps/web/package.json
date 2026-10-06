@@ -23,6 +23,7 @@
     "@x402/stellar": "2.22.0",
     "drizzle-orm": "^0.45.3",
     "next": "16.3.8",
+    "passkey-kit": "0.19.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "ulid": "3.0.2",
