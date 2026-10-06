@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Badge } from "@/components/ui/StatusPill";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 interface WorkTask {
   task_id: string;
@@ -49,8 +51,11 @@ export default function WorkPage() {
   if (notSignedIn) {
     return (
       <main className="mx-auto max-w-md px-4 py-8 text-center">
-        <p className="text-neutral-700">You need to sign in first.</p>
-        <Link href="/join" className="mt-4 inline-block text-blue-600 underline">
+        <p className="text-muted">You need to sign in first.</p>
+        <Link
+          href="/join"
+          className="mt-4 inline-block text-forest underline decoration-mint decoration-2 underline-offset-[3px] hover:text-ink"
+        >
           Go to sign in
         </Link>
       </main>
@@ -58,27 +63,33 @@ export default function WorkPage() {
   }
 
   if (error) {
-    return (
-      <main className="mx-auto max-w-md px-4 py-8 text-center text-red-600">
-        {error}
-      </main>
-    );
+    return <main className="mx-auto max-w-md px-4 py-8 text-center text-coral">{error}</main>;
   }
 
   if (!tasksList) {
-    return (
-      <main className="mx-auto max-w-md px-4 py-8 text-center text-neutral-500">
-        Loading…
-      </main>
-    );
+    return <main className="mx-auto max-w-md px-4 py-8 text-center text-muted">Loading…</main>;
   }
 
   return (
     <main className="mx-auto max-w-md px-4 py-8">
-      <h1 className="text-xl font-semibold text-neutral-900">Open tasks</h1>
+      <p className="font-mono text-[.75rem] font-bold uppercase tracking-[.22em] text-muted2">
+        Find work
+      </p>
+      <h1 className="mt-1 font-display text-[1.75rem] font-extrabold tracking-[-0.01em] text-ink">
+        Open <em className="font-serif italic font-semibold tracking-[-0.02em] text-forest">tasks.</em>
+      </h1>
 
       {tasksList.length === 0 ? (
-        <p className="mt-6 text-sm text-neutral-400">No open tasks right now. Check back soon.</p>
+        <div className="mt-6">
+          <EmptyState
+            heading={
+              <>
+                No tasks <em className="font-serif italic font-semibold text-forest">yet.</em>
+              </>
+            }
+            body="Check back soon — new tasks appear here as they're posted in your city."
+          />
+        </div>
       ) : (
         <ul className="mt-6 space-y-3">
           {tasksList.map((task) => {
@@ -87,17 +98,18 @@ export default function WorkPage() {
               <li key={task.task_id}>
                 <Link
                   href={`/work/${task.task_id}`}
-                  className="block rounded-lg border border-neutral-200 p-4 hover:border-neutral-300"
+                  className="block rounded-lg border border-line bg-surface p-4 transition-all duration-150 hover:-translate-y-[3px] hover:shadow-[var(--sh-hover)]"
                 >
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-neutral-900">
-                      {task.type.replace("_", " ")}
-                    </p>
-                    <p className="text-sm font-semibold text-neutral-900">
-                      {task.price_usdc.toFixed(2)} USDC
-                    </p>
+                    <p className="text-sm font-medium text-ink">{task.type.replace("_", " ")}</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-ink">
+                        {task.price_usdc.toFixed(2)}
+                      </span>
+                      <Badge>USDC</Badge>
+                    </div>
                   </div>
-                  <p className="mt-1 text-xs text-neutral-500">
+                  <p className="mt-1 text-xs text-muted2">
                     {minutesLeft > 0 ? `${minutesLeft} min left` : "Deadline passed"}
                   </p>
                 </Link>

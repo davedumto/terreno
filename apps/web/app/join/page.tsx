@@ -4,6 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getPasskeyKit } from "@/lib/passkey-client";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 
 const COUNTRIES = [
   { code: "NG", label: "Nigeria" },
@@ -128,115 +131,98 @@ export default function JoinPage() {
   if (step === "done") {
     return (
       <main className="mx-auto max-w-md px-4 py-8 text-center">
-        <p className="text-neutral-700">You&apos;re in. Taking you to open tasks…</p>
+        <p className="text-muted">You&apos;re in. Taking you to open tasks…</p>
       </main>
     );
   }
 
   return (
     <main className="mx-auto max-w-md px-4 py-8">
-      <h1 className="text-xl font-semibold text-neutral-900">Join Terreno</h1>
-      <p className="mt-1 text-sm text-neutral-500">
+      <p className="font-mono text-[.75rem] font-bold uppercase tracking-[.22em] text-muted2">
+        Worker onboarding
+      </p>
+      <h1 className="mt-1 font-display text-[1.75rem] font-extrabold tracking-[-0.01em] text-ink">
+        Join <em className="font-serif italic font-semibold tracking-[-0.02em] text-forest">Terreno.</em>
+      </h1>
+      <p className="mt-2 text-sm text-muted">
         Your browser creates a passkey wallet. No app password, no seed phrase.
       </p>
 
-      <div className="mt-6 rounded-lg border border-neutral-200 p-4">
-        <p className="text-sm text-neutral-700">Already joined on this device?</p>
-        <button
+      <div className="mt-6 rounded-lg border border-line bg-surface p-4">
+        <p className="text-sm text-muted">Already joined on this device?</p>
+        <Button
           type="button"
+          variant="outline"
           onClick={handleSignin}
           disabled={signinStep === "connecting" || signinStep === "signing_in"}
-          className="mt-2 w-full rounded-md border border-neutral-300 px-4 py-2 text-neutral-900 disabled:opacity-50"
+          className="mt-2 w-full"
         >
           {signinStatusLabel(signinStep)}
-        </button>
-        {signinError && <p className="mt-2 text-sm text-red-600">{signinError}</p>}
+        </Button>
+        {signinError && <p className="mt-2 text-sm text-coral">{signinError}</p>}
       </div>
 
-      <div className="mt-6 flex items-center gap-3 text-xs text-neutral-400">
-        <span className="h-px flex-1 bg-neutral-200" />
+      <div className="mt-6 flex items-center gap-3 text-xs text-muted2">
+        <span className="h-px flex-1 bg-line" />
         new here
-        <span className="h-px flex-1 bg-neutral-200" />
+        <span className="h-px flex-1 bg-line" />
       </div>
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-        <Field label="Invite code">
-          <input
-            required
-            value={inviteCode}
-            onChange={(e) => setInviteCode(e.target.value)}
-            className="w-full rounded-md border border-neutral-300 px-3 py-2"
-          />
-        </Field>
+        <Input
+          label="Invite code"
+          required
+          value={inviteCode}
+          onChange={(e) => setInviteCode(e.target.value)}
+        />
 
-        <Field label="Your name">
-          <input
-            required
-            maxLength={60}
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            className="w-full rounded-md border border-neutral-300 px-3 py-2"
-          />
-        </Field>
+        <Input
+          label="Your name"
+          required
+          maxLength={60}
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+        />
 
-        <Field label="Country">
-          <select
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
-            className="w-full rounded-md border border-neutral-300 px-3 py-2"
-          >
-            {COUNTRIES.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <Select label="Country" value={country} onChange={(e) => setCountry(e.target.value)}>
+          {COUNTRIES.map((c) => (
+            <option key={c.code} value={c.code}>
+              {c.label}
+            </option>
+          ))}
+        </Select>
 
-        <Field label="City">
-          <input
-            required
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            placeholder="enugu"
-            className="w-full rounded-md border border-neutral-300 px-3 py-2"
-          />
-        </Field>
+        <Input
+          label="City"
+          required
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          placeholder="enugu"
+        />
 
-        <Field label="Languages (comma-separated)">
-          <input
-            required
-            value={languages}
-            onChange={(e) => setLanguages(e.target.value)}
-            placeholder="en, ig"
-            className="w-full rounded-md border border-neutral-300 px-3 py-2"
-          />
-        </Field>
+        <Input
+          label="Languages (comma-separated)"
+          required
+          value={languages}
+          onChange={(e) => setLanguages(e.target.value)}
+          placeholder="en, ig"
+        />
 
-        <p className="text-xs text-neutral-500">
-          By joining you agree to the <Link href="/rules" className="underline">worker rules</Link>.
+        <p className="text-xs text-muted">
+          By joining you agree to the{" "}
+          <Link href="/rules" className="underline decoration-mint decoration-2 underline-offset-[3px] hover:text-ink">
+            worker rules
+          </Link>
+          .
         </p>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-coral">{error}</p>}
 
-        <button
-          type="submit"
-          disabled={step !== "form" && step !== "error"}
-          className="w-full rounded-md bg-neutral-900 px-4 py-2 text-white disabled:opacity-50"
-        >
+        <Button type="submit" variant="sun" disabled={step !== "form" && step !== "error"} className="w-full">
           {statusLabel(step)}
-        </button>
+        </Button>
       </form>
     </main>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-sm text-neutral-700">{label}</span>
-      {children}
-    </label>
   );
 }
 

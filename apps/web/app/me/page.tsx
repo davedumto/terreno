@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Field } from "@/components/ui/Field";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 interface MeResponse {
   display_name: string;
@@ -58,8 +60,11 @@ export default function MePage() {
   if (notSignedIn) {
     return (
       <main className="mx-auto max-w-md px-4 py-8 text-center">
-        <p className="text-neutral-700">You need to sign in first.</p>
-        <Link href="/join" className="mt-4 inline-block text-blue-600 underline">
+        <p className="text-muted">You need to sign in first.</p>
+        <Link
+          href="/join"
+          className="mt-4 inline-block text-forest underline decoration-mint decoration-2 underline-offset-[3px] hover:text-ink"
+        >
           Go to sign in
         </Link>
       </main>
@@ -67,39 +72,33 @@ export default function MePage() {
   }
 
   if (error) {
-    return (
-      <main className="mx-auto max-w-md px-4 py-8 text-center text-red-600">
-        {error}
-      </main>
-    );
+    return <main className="mx-auto max-w-md px-4 py-8 text-center text-coral">{error}</main>;
   }
 
   if (!me) {
-    return (
-      <main className="mx-auto max-w-md px-4 py-8 text-center text-neutral-500">
-        Loading…
-      </main>
-    );
+    return <main className="mx-auto max-w-md px-4 py-8 text-center text-muted">Loading…</main>;
   }
 
   return (
     <main className="mx-auto max-w-md px-4 py-8">
-      <h1 className="text-xl font-semibold text-neutral-900">{me.display_name}</h1>
-      <p className="text-sm text-neutral-500">
+      <h1 className="font-display text-[1.75rem] font-extrabold tracking-[-0.01em] text-ink">
+        {me.display_name}
+      </h1>
+      <p className="text-sm text-muted">
         {me.city}, {me.country}
       </p>
 
-      <section className="mt-6 rounded-lg border border-neutral-200 p-4">
-        <p className="text-sm text-neutral-500">Balance</p>
+      <section className="mt-6 rounded-lg border border-line bg-surface p-4">
+        <p className="text-[.6875rem] font-bold uppercase tracking-[.14em] text-muted2">Balance</p>
         {me.balance.usdc === null ? (
-          <p className="mt-1 text-neutral-400">Balance unavailable right now</p>
+          <p className="mt-1 text-muted">Balance unavailable right now</p>
         ) : (
           <>
-            <p className="mt-1 text-2xl font-semibold text-neutral-900">
-              {me.balance.usdc.toFixed(2)} USDC
+            <p className="mt-1 font-display text-[clamp(2rem,1.6rem+1.4vw,3rem)] font-extrabold leading-none text-ink">
+              {me.balance.usdc.toFixed(2)} <span className="text-[1rem] font-bold text-muted2">USDC</span>
             </p>
             {me.balance.approx_local && (
-              <p className="text-sm text-neutral-500">
+              <p className="mt-1 text-sm text-muted">
                 ≈ {Math.round(me.balance.approx_local.amount).toLocaleString()}{" "}
                 {me.balance.approx_local.currency}
               </p>
@@ -109,42 +108,46 @@ export default function MePage() {
       </section>
 
       <section className="mt-4 grid grid-cols-2 gap-3">
-        <div className="rounded-lg border border-neutral-200 p-4">
-          <p className="text-sm text-neutral-500">Completed</p>
-          <p className="text-xl font-semibold text-neutral-900">{me.completed_tasks}</p>
-        </div>
-        <div className="rounded-lg border border-neutral-200 p-4">
-          <p className="text-sm text-neutral-500">Score</p>
-          <p className="text-xl font-semibold text-neutral-900">{me.score.toFixed(2)}</p>
-        </div>
+        <Field label="Completed" value={me.completed_tasks} />
+        <Field label="Score" value={me.score.toFixed(2)} />
       </section>
 
       <section className="mt-6">
-        <h2 className="text-sm font-medium text-neutral-700">Earnings history</h2>
+        <h2 className="font-mono text-[.75rem] font-bold uppercase tracking-[.22em] text-muted2">
+          Earnings history
+        </h2>
         {me.earnings.length === 0 ? (
-          <p className="mt-2 text-sm text-neutral-400">No completed tasks yet.</p>
+          <div className="mt-3">
+            <EmptyState
+              heading={
+                <>
+                  No completed tasks{" "}
+                  <em className="font-serif italic font-semibold text-forest">yet.</em>
+                </>
+              }
+              body="Completed tasks and their payouts show up here."
+            />
+          </div>
         ) : (
           <ul className="mt-2 space-y-2">
             {me.earnings.map((entry) => (
               <li
                 key={entry.task_id}
-                className="flex items-center justify-between rounded-lg border border-neutral-200 p-3"
+                className="flex items-center justify-between rounded-lg border border-line bg-surface p-3"
               >
                 <div>
-                  <p className="text-sm text-neutral-900">{entry.type.replace("_", " ")}</p>
-                  <p className="text-xs text-neutral-400">
+                  <p className="text-sm text-ink">{entry.type.replace("_", " ")}</p>
+                  <p className="font-mono text-xs text-muted2">
                     {new Date(entry.completed_at).toLocaleDateString()}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-medium text-neutral-900">
-                    {entry.paid_usdc.toFixed(2)} USDC
-                  </p>
+                  <p className="text-sm font-medium text-ink">{entry.paid_usdc.toFixed(2)} USDC</p>
                   <a
                     href={entry.release_tx}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-blue-600 underline"
+                    className="font-mono text-xs text-forest underline decoration-mint decoration-2 underline-offset-[3px] hover:text-ink"
                   >
                     view tx
                   </a>
@@ -155,7 +158,7 @@ export default function MePage() {
         )}
       </section>
 
-      <p className="mt-6 text-center text-xs text-neutral-400">{me.cash_out.note}</p>
+      <p className="mt-6 text-center text-xs text-muted2">{me.cash_out.note}</p>
     </main>
   );
 }

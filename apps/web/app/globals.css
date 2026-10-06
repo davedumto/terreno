@@ -104,6 +104,25 @@
   /* --neo-raised / --neo-raised-sm / --neo-inset use the same formulas as dark */
 }
 
+/*
+ * Tailwind utility classes (bg-surface, text-ink, border-line, ...) for the
+ * runtime tokens above. Each value is a var() reference, not a literal, so
+ * the generated utility still resolves against whichever theme is active
+ * at paint time instead of being frozen to one theme at build time.
+ */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg2: var(--bg2);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-muted2: var(--muted2);
+  --color-chip: var(--chip);
+  --color-signal: var(--signal);
+}
+
 body {
   background: var(--bg);
   color: var(--ink);

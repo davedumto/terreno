@@ -3,6 +3,12 @@
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Textarea } from "@/components/ui/Textarea";
+import { RadioGroup } from "@/components/ui/RadioGroup";
+import { FieldError } from "@/components/ui/FieldError";
+import { Badge } from "@/components/ui/StatusPill";
 
 interface TaskDetail {
   task_id: string;
@@ -96,8 +102,11 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
   if (view === "not_signed_in") {
     return (
       <main className="mx-auto max-w-md px-4 py-8 text-center">
-        <p className="text-neutral-700">You need to sign in first.</p>
-        <Link href="/join" className="mt-4 inline-block text-blue-600 underline">
+        <p className="text-muted">You need to sign in first.</p>
+        <Link
+          href="/join"
+          className="mt-4 inline-block text-forest underline decoration-mint decoration-2 underline-offset-[3px] hover:text-ink"
+        >
           Go to sign in
         </Link>
       </main>
@@ -107,8 +116,11 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
   if (view === "not_found") {
     return (
       <main className="mx-auto max-w-md px-4 py-8 text-center">
-        <p className="text-neutral-700">This task isn&apos;t available anymore.</p>
-        <Link href="/work" className="mt-4 inline-block text-blue-600 underline">
+        <p className="text-muted">This task isn&apos;t available anymore.</p>
+        <Link
+          href="/work"
+          className="mt-4 inline-block text-forest underline decoration-mint decoration-2 underline-offset-[3px] hover:text-ink"
+        >
           Back to open tasks
         </Link>
       </main>
@@ -117,7 +129,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
 
   if (view === "error" || !task) {
     return (
-      <main className="mx-auto max-w-md px-4 py-8 text-center text-neutral-500">
+      <main className="mx-auto max-w-md px-4 py-8 text-center text-muted">
         {view === "loading" ? "Loading…" : "Something went wrong. Reload and try again."}
       </main>
     );
@@ -129,15 +141,16 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
 
       {task.status === "open" && !task.is_own_claim && (
         <div className="mt-6">
-          <button
+          <Button
             type="button"
+            variant="sun"
             onClick={handleClaim}
             disabled={claimState === "claiming"}
-            className="w-full rounded-md bg-neutral-900 px-4 py-2 text-white disabled:opacity-50"
+            className="w-full"
           >
             {claimState === "claiming" ? "Claiming…" : "Claim this task"}
-          </button>
-          {claimError && <p className="mt-2 text-sm text-red-600">{claimError}</p>}
+          </Button>
+          <FieldError error={claimError} />
         </div>
       )}
 
@@ -151,11 +164,11 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
       )}
 
       {task.status === "claimed" && !task.is_own_claim && (
-        <p className="mt-6 text-sm text-neutral-500">Someone else is already working on this.</p>
+        <p className="mt-6 text-sm text-muted">Someone else is already working on this.</p>
       )}
 
       {(task.status === "submitted" || task.status === "completed") && (
-        <p className="mt-6 text-sm text-neutral-500">
+        <p className="mt-6 text-sm text-muted">
           You already answered this one. {task.status === "completed" ? "Paid." : "Payment is processing."}
         </p>
       )}
@@ -170,14 +183,19 @@ function minutesUntil(iso: string): number {
 function TaskSummary({ task }: { task: TaskDetail }) {
   return (
     <div>
-      <h1 className="text-xl font-semibold text-neutral-900">{taskTitle(task)}</h1>
-      <div className="mt-2 flex items-center justify-between">
-        <p className="text-sm text-neutral-500">
+      <h1 className="font-display text-[1.75rem] font-extrabold tracking-[-0.01em] text-ink">
+        {taskTitle(task)}
+      </h1>
+      <div className="mt-3 flex items-center justify-between">
+        <p className="text-sm text-muted">
           {minutesUntil(task.deadline_at) > 0
             ? `${minutesUntil(task.deadline_at)} min left`
             : "Deadline passed"}
         </p>
-        <p className="text-sm font-semibold text-neutral-900">{task.price_usdc.toFixed(2)} USDC</p>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-ink">{task.price_usdc.toFixed(2)}</span>
+          <Badge>USDC</Badge>
+        </div>
       </div>
     </div>
   );
@@ -212,7 +230,7 @@ function AnswerForm({
 
 function PhotoStub() {
   return (
-    <p className="rounded-md bg-amber-50 p-3 text-xs text-amber-800">
+    <p className="rounded-md bg-sun-soft p-3 text-xs text-forest-ink">
       Photo upload isn&apos;t available yet. Submitting without one for now.
     </p>
   );
@@ -239,16 +257,26 @@ function VerifyPlaceForm({
       }}
       className="mt-6 space-y-4"
     >
-      <RadioField label="Does it exist?" value={exists} onChange={setExists} options={["yes", "no"]} />
-      <RadioField
+      <RadioGroup
+        label="Does it exist?"
+        value={exists}
+        onChange={setExists}
+        options={["yes", "no"]}
+        optionLabel={optionLabel}
+      />
+      <RadioGroup
         label="Open now?"
         value={openNow}
         onChange={setOpenNow}
         options={["yes", "no", "cant_tell"]}
+        optionLabel={optionLabel}
       />
-      <NotesField value={notes} onChange={setNotes} />
+      <Textarea label="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={300} rows={3} />
       <PhotoStub />
-      <SubmitButton submitting={submitting} error={error} />
+      <Button type="submit" variant="sun" disabled={submitting} className="w-full">
+        {submitting ? "Submitting…" : "Submit answer"}
+      </Button>
+      <FieldError error={error} />
     </form>
   );
 }
@@ -281,27 +309,28 @@ function CheckPriceForm({
       }}
       className="mt-6 space-y-4"
     >
-      <RadioField label="Found it?" value={found} onChange={setFound} options={["yes", "no"]} />
-      <label className="block">
-        <span className="mb-1 block text-sm text-neutral-700">Price</span>
-        <input
-          type="number"
-          step="0.01"
-          min="0"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-          className="w-full rounded-md border border-neutral-300 px-3 py-2"
-        />
-      </label>
-      <RadioField
+      <RadioGroup label="Found it?" value={found} onChange={setFound} options={["yes", "no"]} optionLabel={optionLabel} />
+      <Input
+        label="Price"
+        type="number"
+        step="0.01"
+        min="0"
+        value={price}
+        onChange={(e) => setPrice(e.target.value)}
+      />
+      <RadioGroup
         label="In stock?"
         value={inStock}
         onChange={setInStock}
         options={["yes", "no", "cant_tell"]}
+        optionLabel={optionLabel}
       />
-      <NotesField value={notes} onChange={setNotes} />
+      <Textarea label="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={300} rows={3} />
       <PhotoStub />
-      <SubmitButton submitting={submitting} error={error} />
+      <Button type="submit" variant="sun" disabled={submitting} className="w-full">
+        {submitting ? "Submitting…" : "Submit answer"}
+      </Button>
+      <FieldError error={error} />
     </form>
   );
 }
@@ -326,96 +355,30 @@ function TranslateForm({
       }}
       className="mt-6 space-y-4"
     >
-      <label className="block">
-        <span className="mb-1 block text-sm text-neutral-700">Translation</span>
-        <textarea
-          required
-          value={translation}
-          onChange={(e) => setTranslation(e.target.value)}
-          rows={4}
-          className="w-full rounded-md border border-neutral-300 px-3 py-2"
-        />
-      </label>
-      <NotesField label="Notes on register or alternatives" value={notes} onChange={setNotes} />
-      <SubmitButton submitting={submitting} error={error} />
+      <Textarea
+        label="Translation"
+        required
+        value={translation}
+        onChange={(e) => setTranslation(e.target.value)}
+        rows={4}
+      />
+      <Textarea
+        label="Notes on register or alternatives"
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        maxLength={300}
+        rows={3}
+      />
+      <Button type="submit" variant="sun" disabled={submitting} className="w-full">
+        {submitting ? "Submitting…" : "Submit answer"}
+      </Button>
+      <FieldError error={error} />
     </form>
-  );
-}
-
-function RadioField<T extends string>({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: T;
-  onChange: (value: T) => void;
-  options: T[];
-}) {
-  return (
-    <div>
-      <span className="mb-1 block text-sm text-neutral-700">{label}</span>
-      <div className="flex gap-2">
-        {options.map((option) => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => onChange(option)}
-            className={`rounded-md border px-3 py-1.5 text-sm ${
-              value === option
-                ? "border-neutral-900 bg-neutral-900 text-white"
-                : "border-neutral-300 text-neutral-700"
-            }`}
-          >
-            {optionLabel(option)}
-          </button>
-        ))}
-      </div>
-    </div>
   );
 }
 
 function optionLabel(option: string): string {
   return option === "cant_tell" ? "Can't tell" : option[0]?.toUpperCase() + option.slice(1);
-}
-
-function NotesField({
-  label = "Notes (optional)",
-  value,
-  onChange,
-}: {
-  label?: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-sm text-neutral-700">{label}</span>
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        maxLength={300}
-        rows={3}
-        className="w-full rounded-md border border-neutral-300 px-3 py-2"
-      />
-    </label>
-  );
-}
-
-function SubmitButton({ submitting, error }: { submitting: boolean; error: string | null }) {
-  return (
-    <>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <button
-        type="submit"
-        disabled={submitting}
-        className="w-full rounded-md bg-neutral-900 px-4 py-2 text-white disabled:opacity-50"
-      >
-        {submitting ? "Submitting…" : "Submit answer"}
-      </button>
-    </>
-  );
 }
 
 function claimErrorMessage(code: string | undefined, status: string | undefined): string {
