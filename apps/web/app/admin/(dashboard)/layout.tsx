@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { verifyAdminSessionFromCookieStore } from "@/lib/admin-session";
+import { Sidebar } from "@/components/admin/Sidebar";
+import { Header } from "@/components/admin/Header";
 
 // Server-side auth gate, checked once here rather than repeated client-side
 // in every admin page (the pattern every other page in this app uses, via
@@ -15,5 +17,13 @@ export default async function AdminDashboardLayout({ children }: { children: Rea
     redirect("/admin/login");
   }
 
-  return <div className="min-h-screen bg-bg">{children}</div>;
+  return (
+    <div className="min-h-screen bg-bg">
+      <Header />
+      <div className="flex">
+        <Sidebar />
+        <main className="mx-auto w-full max-w-[1240px] px-[var(--gutter,1.5rem)] py-8">{children}</main>
+      </div>
+    </div>
+  );
 }
