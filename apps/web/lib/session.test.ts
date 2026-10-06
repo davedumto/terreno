@@ -110,7 +110,16 @@ describe("session", () => {
 
   it("getSession returns null for a tampered cookie value", async () => {
     const token = await signSession({ workerId: "worker-1" });
-    const tampered = token.slice(0, -1) + (token.endsWith("A") ? "B" : "A");
+    // Flip a character well before the end of the signature segment, not
+    // the very last character: base64url packs 6 bits per character, so
+    // the last character of a signature can have "don't care" padding
+    // bits where a flip decodes to the identical byte, making the
+    // signature accidentally still valid by chance (~1-in-64 odds per
+    // run) and this test occasionally flaky for a reason unrelated to
+    // signature verification itself.
+    const flipIndex = token.length - 5;
+    const flippedChar = token[flipIndex] === "A" ? "B" : "A";
+    const tampered = token.slice(0, flipIndex) + flippedChar + token.slice(flipIndex + 1);
 
     const session = await getSession(requestWithCookie(tampered));
     expect(session).toBeNull();
