@@ -10,20 +10,20 @@ const LANGUAGE_CODE = z
   .string()
   .regex(/^[a-z]{2,3}$/, { error: "language must be a lowercase 2-3 letter code, e.g. \"en\"" });
 
+const CONTRACT_ID = z
+  .string()
+  .regex(/^C[A-Z0-9]{55}$/, { error: "contract_id must be a valid C... address" });
+
 export const workerJoinSchema = z.object({
   invite_code: z.string().min(1, { error: "invite_code is required" }),
-  contract_id: z
-    .string()
-    .regex(/^C[A-Z0-9]{55}$/, { error: "contract_id must be a valid C... address" }),
+  contract_id: CONTRACT_ID,
   signed_tx: z.string().min(1, { error: "signed_tx is required" }),
 });
 
 export type WorkerJoinInput = z.infer<typeof workerJoinSchema>;
 
 export const workerConfirmSchema = z.object({
-  contract_id: z
-    .string()
-    .regex(/^C[A-Z0-9]{55}$/, { error: "contract_id must be a valid C... address" }),
+  contract_id: CONTRACT_ID,
   display_name: z.string().min(1).max(MAX_DISPLAY_NAME_LENGTH),
   country: COUNTRY_CODE,
   city: CITY,
@@ -32,3 +32,10 @@ export const workerConfirmSchema = z.object({
 });
 
 export type WorkerConfirmInput = z.infer<typeof workerConfirmSchema>;
+
+export const workerSigninSchema = z.object({
+  contract_id: CONTRACT_ID,
+  key_id_base64: z.string().min(1, { error: "key_id_base64 is required" }),
+});
+
+export type WorkerSigninInput = z.infer<typeof workerSigninSchema>;

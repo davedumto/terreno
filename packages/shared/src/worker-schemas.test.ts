@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { workerConfirmSchema, workerJoinSchema } from "./worker-schemas";
+import { workerConfirmSchema, workerJoinSchema, workerSigninSchema } from "./worker-schemas";
 
 const VALID_JOIN = {
   invite_code: "secret123",
@@ -85,5 +85,36 @@ describe("workerConfirmSchema", () => {
   it("does not require invite_code or signed_tx (join-only fields)", () => {
     expect("invite_code" in workerConfirmSchema.shape).toBe(false);
     expect("signed_tx" in workerConfirmSchema.shape).toBe(false);
+  });
+});
+
+describe("workerSigninSchema", () => {
+  const VALID_SIGNIN = {
+    contract_id: "C" + "A".repeat(55),
+    key_id_base64: "YWJjZGVmZ2g",
+  };
+
+  it("accepts a fully valid body", () => {
+    expect(workerSigninSchema.safeParse(VALID_SIGNIN).success).toBe(true);
+  });
+
+  it("rejects a missing contract_id", () => {
+    const { contract_id, ...rest } = VALID_SIGNIN;
+    expect(workerSigninSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it("rejects a contract_id that doesn't start with C", () => {
+    const result = workerSigninSchema.safeParse({ ...VALID_SIGNIN, contract_id: "G" + "A".repeat(55) });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a missing key_id_base64", () => {
+    const { key_id_base64, ...rest } = VALID_SIGNIN;
+    expect(workerSigninSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it("does not require display_name, country, city, or languages (confirm-only fields)", () => {
+    expect("display_name" in workerSigninSchema.shape).toBe(false);
+    expect("country" in workerSigninSchema.shape).toBe(false);
   });
 });
