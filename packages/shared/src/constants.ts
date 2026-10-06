@@ -1,4 +1,5 @@
 // Amounts are integers in stroops (7 decimals). 0.50 USDC = 5_000_000 stroops.
+export const STROOPS_PER_USDC = 10_000_000;
 
 export const TASK_TYPES = ["verify_place", "check_price", "translate"] as const;
 export type TaskType = (typeof TASK_TYPES)[number];

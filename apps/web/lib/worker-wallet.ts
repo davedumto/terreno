@@ -32,13 +32,19 @@ export async function verifyWorkerWallet(contractId: string): Promise<void> {
     );
   }
 
-  if (instance.executable.type !== "contractExecutableWasm") {
+  // @stellar/stellar-sdk@16.3.1's js-xdr union API: executable()/switch()/
+  // wasmHash() are methods here, not properties (that's v17's API, pinned
+  // down workspace-wide for passkey-kit compatibility; see docs/decisions.md,
+  // 2026-10-06). wasmHash() returns a raw Buffer, not a Hash with its own
+  // string encoding, so the hex conversion is explicit.
+  const executable = instance.executable();
+  if (executable.switch().name !== "contractExecutableWasm") {
     throw new WalletVerificationError(
-      `contract ${contractId} is not a wasm-executable contract (type: ${instance.executable.type})`,
+      `contract ${contractId} is not a wasm-executable contract (type: ${executable.switch().name})`,
     );
   }
 
-  const actualWasmHash = instance.executable.wasmHash.toString().toLowerCase();
+  const actualWasmHash = executable.wasmHash().toString("hex").toLowerCase();
   if (actualWasmHash !== expectedWasmHash) {
     throw new WalletVerificationError(
       `contract ${contractId} runs wasm ${actualWasmHash}, expected ${expectedWasmHash}`,

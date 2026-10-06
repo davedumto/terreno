@@ -9,7 +9,7 @@
     "e2e:escrow": "tsx e2e-escrow-testnet.ts"
   },
   "dependencies": {
-    "@stellar/stellar-sdk": "17.2.1",
+    "@stellar/stellar-sdk": "16.3.1",
     "web": "workspace:*"
   },
   "devDependencies": {

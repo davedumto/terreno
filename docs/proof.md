@@ -3,6 +3,19 @@
 Testnet transactions produced by Terreno, newest first. Full end-to-end runs
 (paid task to completed/refunded) land here starting Phase 2.
 
+## Phase 3 regression check
+
+`scripts/e2e-escrow-testnet.ts` rerun after downgrading `@stellar/stellar-sdk`
+from `17.2.1` to `16.3.1` workspace-wide (passkey-kit compatibility; see
+docs/decisions.md). Confirms `lib/escrow.ts` needed no code changes and still
+works correctly end to end under the older SDK: `create_task` (task id
+`eba086220885d2f941ec75061c326edabda5121bff946302c5ca7d48fa9ac845`, status
+`Locked`), `assign` (status `Assigned`), `release` (status `Released`), a
+second run's `create_task`/`refund` after the deadline passed (status
+`Refunded`), and a `get_task` on an unknown id correctly raising `NotFound`.
+Console output logged task ids and statuses, not individual tx hashes this
+run; full script output: "All e2e checks passed."
+
 ## Phase 1
 
 Escrow contract: `CCNSRMFSBNZ4YMCPMPB6CH3YU5QDJN23GHFZ52QNCFEF4VE64P44WSAK`

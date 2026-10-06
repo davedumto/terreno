@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { desc, eq } from "drizzle-orm";
-import { APPROX_USD_TO_LOCAL } from "@terreno/shared";
+import { APPROX_USD_TO_LOCAL, STROOPS_PER_USDC } from "@terreno/shared";
 import { db } from "@/lib/db";
 import { tasks, workers } from "@/lib/db/schema";
 import { getSession } from "@/lib/session";
 import { computeReputationScore } from "@/lib/reputation";
 import { getUsdcBalance } from "@/lib/usdc";
-
-const STROOPS_PER_USDC = 10_000_000;
 
 function stroopsToUsdc(stroops: number): number {
   return stroops / STROOPS_PER_USDC;

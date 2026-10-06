@@ -15,12 +15,22 @@ vi.mock("@stellar/stellar-sdk/rpc", () => ({
 
 const { verifyWorkerWallet, WalletVerificationError } = await import("./worker-wallet");
 
+// Mirrors @stellar/stellar-sdk@16.3.1's real js-xdr union shape: methods,
+// not properties (executable(), switch(), wasmHash()).
 function wasmInstance(wasmHashHex: string) {
   return {
-    executable: {
-      type: "contractExecutableWasm",
-      wasmHash: { toString: () => wasmHashHex },
-    },
+    executable: () => ({
+      switch: () => ({ name: "contractExecutableWasm" }),
+      wasmHash: () => Buffer.from(wasmHashHex, "hex"),
+    }),
+  };
+}
+
+function stellarAssetInstance() {
+  return {
+    executable: () => ({
+      switch: () => ({ name: "contractExecutableStellarAsset" }),
+    }),
   };
 }
 
@@ -56,9 +66,7 @@ describe("verifyWorkerWallet", () => {
   });
 
   it("throws WalletVerificationError for a non-wasm executable (e.g. Stellar Asset Contract)", async () => {
-    getContractInstanceMock.mockResolvedValue({
-      executable: { type: "contractExecutableStellarAsset" },
-    });
+    getContractInstanceMock.mockResolvedValue(stellarAssetInstance());
 
     await expect(verifyWorkerWallet(CONTRACT_ID)).rejects.toThrow(WalletVerificationError);
   });
