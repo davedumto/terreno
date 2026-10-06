@@ -76,3 +76,19 @@ export async function requireAdminSession(
   }
   return verifyAdminSession(token);
 }
+
+/**
+ * Same check as requireAdminSession, from a next/headers cookie store
+ * instead of a NextRequest (the shape a server component's `await
+ * cookies()` returns). Keeps the cookie name internal to this module
+ * rather than exporting the raw constant for callers to duplicate.
+ */
+export async function verifyAdminSessionFromCookieStore(cookieStore: {
+  get(name: string): { value: string } | undefined;
+}): Promise<AdminSessionPayload | null> {
+  const token = cookieStore.get(ADMIN_SESSION_COOKIE_NAME)?.value;
+  if (!token) {
+    return null;
+  }
+  return verifyAdminSession(token);
+}

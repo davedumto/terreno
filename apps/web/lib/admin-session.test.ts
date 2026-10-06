@@ -7,6 +7,7 @@ import {
   setAdminSessionCookie,
   signAdminSession,
   verifyAdminSession,
+  verifyAdminSessionFromCookieStore,
 } from "./admin-session";
 
 const ORIGINAL_SECRET = "test-admin-session-secret-at-least-32-bytes";
@@ -136,6 +137,21 @@ describe("admin-session", () => {
     const tampered = token.slice(0, flipIndex) + flippedChar + token.slice(flipIndex + 1);
 
     const session = await requireAdminSession(requestWithCookie(tampered));
+    expect(session).toBeNull();
+  });
+
+  it("verifyAdminSessionFromCookieStore verifies a token from a next/headers-shaped cookie store", async () => {
+    const token = await signAdminSession({ admin: true });
+    const cookieStore = { get: (name: string) => (name === "terreno_admin_session" ? { value: token } : undefined) };
+
+    const session = await verifyAdminSessionFromCookieStore(cookieStore);
+    expect(session).toEqual({ admin: true });
+  });
+
+  it("verifyAdminSessionFromCookieStore returns null when the cookie is absent", async () => {
+    const cookieStore = { get: () => undefined };
+
+    const session = await verifyAdminSessionFromCookieStore(cookieStore);
     expect(session).toBeNull();
   });
 
