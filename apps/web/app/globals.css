@@ -1,1 +1,111 @@
 @import "tailwindcss";
+
+/*
+ * Static tokens: resolved once at build time into Tailwind utility classes.
+ * Brand accent colors do not change between dark/light per the design spec
+ * (only their text-contrast rules do), so they belong here, not in the
+ * runtime :root block below.
+ */
+@theme {
+  --color-forest: #13594d;
+  --color-forest-ink: #0c3b31;
+  --color-mint: #3ee6ad;
+  --color-mint-soft: #dcf8ec;
+  --color-lime: #c8f048;
+  --color-lime-soft: #f0f9d2;
+  --color-sun: #ffc94a;
+  --color-sun-soft: #ffefc9;
+  --color-coral: #ff6b5e;
+  --color-coral-soft: #ffe4e0;
+
+  --font-display: "Cabinet Grotesk", var(--font-body), sans-serif;
+  --font-body: var(--font-plus-jakarta), sans-serif;
+  --font-mono: var(--font-space-mono), monospace;
+  --font-serif: var(--font-playfair), serif;
+  --font-poster: var(--font-anton), sans-serif;
+
+  --text-title: clamp(1.75rem, 1.4rem + 1.2vw, 2.5rem);
+  --text-h3: 1.1875rem;
+  --text-kpi: clamp(2rem, 1.6rem + 1.4vw, 3rem);
+  --text-body: 0.9375rem;
+  --text-sm: 0.8125rem;
+  --text-eyebrow: 0.75rem;
+  --text-label: 0.6875rem;
+
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-12: 3rem;
+  --spacing-gutter: clamp(1.25rem, 4vw, 2.5rem);
+
+  --radius-pill: 9999px;
+  --radius-card: 2rem;
+  --radius-lg: 1rem;
+  --radius-md: 0.75rem;
+}
+
+/*
+ * Runtime tokens: plain CSS custom properties, consumed directly as var(--x)
+ * in component CSS (shadows, neo-* formulas, motion easings) rather than
+ * through Tailwind's utility generation. These flip value under
+ * :root[data-theme="light"], which a build-time @theme block cannot do.
+ */
+:root {
+  /* DARK (default app theme) */
+  --bg: #060a09;
+  --bg2: #0a100e;
+  --surface: #111a17;
+  --surface2: #0d1613;
+  --line: #ffffff17;
+  --ink: #eff5f2;
+  --muted: #eff5f2bd;
+  --muted2: #eff5f28f;
+  --chip: #ffffff0f;
+  --green: #13594d;
+  --green-mid: #1f8a72;
+  --signal: #3ee6ad;
+  --lime: #c8f048;
+  --negative: #ff6b5e;
+  --neo-bg: #0a0f0d;
+  --neo-surface: #0e1512;
+  --neo-light: #3ee6ad0f;
+  --neo-shadow: #000000a8;
+  --neo-raised: -6px -6px 16px var(--neo-light), 8px 8px 20px var(--neo-shadow);
+  --neo-raised-sm: -3px -3px 8px var(--neo-light), 4px 4px 10px var(--neo-shadow);
+  --neo-inset: inset 4px 4px 10px var(--neo-shadow), inset -4px -4px 10px var(--neo-light);
+  --shell-header-h: 92px;
+
+  --sh-card: 0 40px 100px #0c3b3173;
+  --sh-hover: 0 8px 20px rgba(12, 59, 49, 0.12);
+  --sh-glow: 0 12px 40px #c8f04826;
+  --ease-rise: cubic-bezier(0.22, 0.95, 0.3, 1);
+  --ease-io: cubic-bezier(0.65, 0.05, 0.36, 1);
+  --dur-fast: 0.2s;
+  --dur-reveal: 0.6s;
+}
+
+:root[data-theme="light"] {
+  --bg: #eef2f0;
+  --bg2: #e6ece9;
+  --surface: #ffffff;
+  --surface2: #f2f6f4;
+  --line: #060a091a;
+  --ink: #0d1a15;
+  --muted: #0d1a15b8;
+  --muted2: #0d1a1585;
+  --chip: #0d1a150f;
+  --signal: #10b981;
+  --neo-bg: #eef2f0;
+  --neo-surface: #f4f8f6;
+  --neo-light: #ffffffe6;
+  --neo-shadow: #060a0924;
+  /* --neo-raised / --neo-raised-sm / --neo-inset use the same formulas as dark */
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+}
