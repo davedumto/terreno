@@ -16,3 +16,5 @@ overrides:
   # docs/decisions.md, 2026-10-06), so this override still matters: force
   # the patched axios everywhere rather than whatever 16.3.1 itself bundles.
   axios: ^1.20.0
+patchedDependencies:
+  passkey-kit@0.19.1: patches/passkey-kit@0.19.1.patch

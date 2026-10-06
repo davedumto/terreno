@@ -7,6 +7,9 @@ settings:
 overrides:
   axios: ^1.20.0
 
+patchedDependencies:
+  passkey-kit@0.19.1: db3cf212a2cf8379ae5c97b1ca777bc8faf9cd50399bbfd4a8b576603af4c7cf
+
 importers:
 
   .:
@@ -77,7 +80,7 @@ importers:
         version: 16.3.8(@babel/core@7.29.7)(@types/node@22.20.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       passkey-kit:
         specifier: 0.19.1
-        version: 0.19.1(@stellar/stellar-sdk@16.3.1)
+        version: 0.19.1(patch_hash=db3cf212a2cf8379ae5c97b1ca777bc8faf9cd50399bbfd4a8b576603af4c7cf)(@stellar/stellar-sdk@16.3.1)
       react:
         specifier: 19.3.0
         version: 19.3.0
@@ -5957,7 +5960,7 @@ snapshots:
       '@stellar/stellar-sdk': 16.3.1
       buffer: 6.0.3
 
-  passkey-kit@0.19.1(@stellar/stellar-sdk@16.3.1):
+  passkey-kit@0.19.1(patch_hash=db3cf212a2cf8379ae5c97b1ca777bc8faf9cd50399bbfd4a8b576603af4c7cf)(@stellar/stellar-sdk@16.3.1):
     dependencies:
       '@simplewebauthn/browser': 13.3.0
       '@stellar/stellar-sdk': 16.3.1
