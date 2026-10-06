@@ -3,14 +3,14 @@ import { DEADLINE_MINUTES_MAX, DEADLINE_MINUTES_MIN, MAX_QUESTION_LENGTH, MAX_SO
 
 // ISO 3166-1 alpha-2 country codes this project currently routes to.
 // SPEC.md section 1: Nigeria, Chile, Costa Rica.
-const COUNTRY_CODE = z.enum(["NG", "CL", "CR"]);
+export const COUNTRY_CODE = z.enum(["NG", "CL", "CR"]);
 
 // City membership against the live-cities list (SPEC.md section 12: a city
 // is "live" when it has at least 2 active workers, computed from the DB)
 // cannot be expressed statically in a zod schema. That check happens in
 // the route handler against current worker data; this just enforces the
 // lowercase, normalized string shape SPEC.md section 5 requires.
-const CITY = z
+export const CITY = z
   .string()
   .min(1, { error: "city is required" })
   .regex(/^[a-z-]+$/, { error: "city must be lowercase, e.g. \"enugu\"" });

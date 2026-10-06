@@ -1,0 +1,126 @@
+import { describe, expect, it } from "vitest";
+import { workerConfirmSchema, workerJoinSchema } from "./worker-schemas";
+
+const VALID_JOIN = {
+  invite_code: "secret123",
+  display_name: "Chidi",
+  country: "NG",
+  city: "enugu",
+  languages: ["en", "ig"],
+  key_id_base64: "YWJjZGVmZ2g",
+  public_key_base64: "cHVibGljS2V5",
+  contract_id: "C" + "A".repeat(55),
+  signed_tx: "AAAAAgAAAAA=",
+};
+
+const VALID_CONFIRM = {
+  contract_id: "C" + "A".repeat(55),
+  creation_tx_hash: "a".repeat(64),
+  birth_wasm_hash: "b".repeat(64),
+  creation_ledger: 123456,
+  display_name: "Chidi",
+  country: "NG",
+  city: "enugu",
+  languages: ["en", "ig"],
+  key_id_base64: "YWJjZGVmZ2g",
+};
+
+describe("workerJoinSchema", () => {
+  it("accepts a fully valid body", () => {
+    expect(workerJoinSchema.safeParse(VALID_JOIN).success).toBe(true);
+  });
+
+  it("rejects a missing invite_code", () => {
+    const { invite_code, ...rest } = VALID_JOIN;
+    expect(workerJoinSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it("rejects an unsupported country", () => {
+    const result = workerJoinSchema.safeParse({ ...VALID_JOIN, country: "US" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an uppercase city", () => {
+    const result = workerJoinSchema.safeParse({ ...VALID_JOIN, city: "Enugu" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an empty languages array", () => {
+    const result = workerJoinSchema.safeParse({ ...VALID_JOIN, languages: [] });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a malformed language code", () => {
+    const result = workerJoinSchema.safeParse({ ...VALID_JOIN, languages: ["english"] });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts 3-letter language codes", () => {
+    const result = workerJoinSchema.safeParse({ ...VALID_JOIN, languages: ["ibo"] });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a contract_id that doesn't start with C", () => {
+    const result = workerJoinSchema.safeParse({ ...VALID_JOIN, contract_id: "G" + "A".repeat(55) });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a contract_id of the wrong length", () => {
+    const result = workerJoinSchema.safeParse({ ...VALID_JOIN, contract_id: "CAAA" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a display_name over 60 characters", () => {
+    const result = workerJoinSchema.safeParse({ ...VALID_JOIN, display_name: "x".repeat(61) });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an empty display_name", () => {
+    const result = workerJoinSchema.safeParse({ ...VALID_JOIN, display_name: "" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a missing signed_tx", () => {
+    const { signed_tx, ...rest } = VALID_JOIN;
+    expect(workerJoinSchema.safeParse(rest).success).toBe(false);
+  });
+});
+
+describe("workerConfirmSchema", () => {
+  it("accepts a fully valid body", () => {
+    expect(workerConfirmSchema.safeParse(VALID_CONFIRM).success).toBe(true);
+  });
+
+  it("rejects a creation_tx_hash that isn't 64 hex chars", () => {
+    const result = workerConfirmSchema.safeParse({ ...VALID_CONFIRM, creation_tx_hash: "not-hex" });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts an uppercase hex hash (case-insensitive)", () => {
+    const result = workerConfirmSchema.safeParse({
+      ...VALID_CONFIRM,
+      creation_tx_hash: "A".repeat(64),
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a birth_wasm_hash of the wrong length", () => {
+    const result = workerConfirmSchema.safeParse({ ...VALID_CONFIRM, birth_wasm_hash: "ab" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a negative creation_ledger", () => {
+    const result = workerConfirmSchema.safeParse({ ...VALID_CONFIRM, creation_ledger: -1 });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a non-integer creation_ledger", () => {
+    const result = workerConfirmSchema.safeParse({ ...VALID_CONFIRM, creation_ledger: 1.5 });
+    expect(result.success).toBe(false);
+  });
+
+  it("does not require invite_code or signed_tx (join-only fields)", () => {
+    expect("invite_code" in workerConfirmSchema.shape).toBe(false);
+    expect("signed_tx" in workerConfirmSchema.shape).toBe(false);
+  });
+});
