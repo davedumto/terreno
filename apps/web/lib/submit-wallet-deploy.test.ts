@@ -33,6 +33,14 @@ function buildCarrierXdr(): string {
 const getAccountMock = vi.fn();
 const sendTransactionMock = vi.fn();
 const pollTransactionMock = vi.fn();
+// Real behavior: re-simulates the built transaction and returns it fully
+// assembled with a corrected Soroban footprint (see worker-wallet.ts's doc
+// comment on why this step is required, not optional). For this test
+// suite's classic bumpSequence stand-in operation there is nothing Soroban
+// to recompute, so the faithful mock is "returns the input unchanged" —
+// the actual footprint-correctness fix is proven separately against a real
+// Soroban auth entry on live testnet; see docs/decisions.md, 2026-10-06.
+const prepareTransactionMock = vi.fn((...args: unknown[]) => Promise.resolve(args[0]));
 
 vi.mock("@stellar/stellar-sdk/rpc", async () => {
   const actual = await vi.importActual<typeof import("@stellar/stellar-sdk/rpc")>("@stellar/stellar-sdk/rpc");
@@ -48,6 +56,9 @@ vi.mock("@stellar/stellar-sdk/rpc", async () => {
       pollTransaction(...args: unknown[]) {
         return pollTransactionMock(...args);
       }
+      prepareTransaction(...args: unknown[]) {
+        return prepareTransactionMock(...args);
+      }
     },
   };
 });
@@ -61,9 +72,11 @@ beforeEach(() => {
   getAccountMock.mockReset();
   sendTransactionMock.mockReset();
   pollTransactionMock.mockReset();
+  prepareTransactionMock.mockReset();
   getAccountMock.mockResolvedValue(new Account(adminKeypair.publicKey(), "100"));
   sendTransactionMock.mockResolvedValue({ status: "PENDING", hash: "a".repeat(64) });
   pollTransactionMock.mockResolvedValue({ status: "SUCCESS" });
+  prepareTransactionMock.mockImplementation((...args: unknown[]) => Promise.resolve(args[0]));
 });
 
 afterEach(() => {
@@ -124,5 +137,40 @@ describe("submitWalletDeploy", () => {
 
     const submittedTx = sendTransactionMock.mock.calls[0]?.[0];
     expect(submittedTx.operations[0].type).toBe("bumpSequence");
+  });
+
+  it("re-simulates via prepareTransaction before signing, not the carrier's own stale Soroban data", async () => {
+    // Capture the transaction's signature count at the moment prepareTransaction
+    // is actually called, not after the test awaits submitWalletDeploy to
+    // completion: the mock and the real code share the same object
+    // reference, and .sign() mutates it in place afterward, so reading
+    // .signatures only after everything has run would just show the
+    // post-sign state regardless of call order.
+    let signatureCountAtPrepareTime = -1;
+    prepareTransactionMock.mockImplementation((...args: unknown[]) => {
+      const tx = args[0] as { signatures: unknown[] };
+      signatureCountAtPrepareTime = tx.signatures.length;
+      return Promise.resolve(tx);
+    });
+    const carrierXdr = buildCarrierXdr();
+
+    await submitWalletDeploy(carrierXdr);
+
+    expect(prepareTransactionMock).toHaveBeenCalledTimes(1);
+    expect(signatureCountAtPrepareTime).toBe(0); // unsigned when handed to prepareTransaction
+    const unpreparedTx = prepareTransactionMock.mock.calls[0]?.[0] as { source: string };
+    expect(unpreparedTx.source).toBe(adminKeypair.publicKey());
+    // sendTransaction must receive prepareTransaction's output, signed, not
+    // some other transaction built independently.
+    const submittedTx = sendTransactionMock.mock.calls[0]?.[0];
+    expect(submittedTx).toBe(unpreparedTx);
+  });
+
+  it("throws WalletDeploySubmissionError when re-simulation fails, without submitting", async () => {
+    prepareTransactionMock.mockRejectedValue(new Error("simulation failed"));
+    const carrierXdr = buildCarrierXdr();
+
+    await expect(submitWalletDeploy(carrierXdr)).rejects.toThrow(WalletDeploySubmissionError);
+    expect(sendTransactionMock).not.toHaveBeenCalled();
   });
 });

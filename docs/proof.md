@@ -3,6 +3,27 @@
 Testnet transactions produced by Terreno, newest first. Full end-to-end runs
 (paid task to completed/refunded) land here starting Phase 2.
 
+## Phase 3: first real worker onboarded
+
+2026-10-06: David ran `/join` for real, through a real browser (not a probe
+script): a passkey registration, a second WebAuthn authentication ceremony
+for the binding proof, the deploy carrier submitted and resourced through
+`lib/worker-wallet.ts::submitWalletDeploy()` (the real-world confirmation
+of the nonce/footprint fix below, not just the disposable-key probe that
+found it), on-chain confirmation, and a genuine `workers` row created
+(wallet `CDIXEKAEC736CT3OVBVM7HB4G2IJC2MCJEJVC5RMDGS32PI62MR2KVP4`). Landed
+on `/work` successfully (empty, correctly, since no tasks exist yet). This
+worker row is left in the database as real data, not cleaned up like the
+earlier throwaway probe workers.
+
+An earlier attempt in the same session failed during the registration
+ceremony itself (browser console showed: `publicKey.pubKeyCredParams is
+missing at least one of the default algorithm identifiers: ES256 and
+RS256`, a warning from passkey-kit's own `startRegistration` call about its
+WebAuthn options shape) but succeeded on retry; noted as a possible
+intermittent authenticator-compatibility issue to watch for, not something
+fixed in this project's own code.
+
 ## Phase 3 regression check
 
 `scripts/e2e-escrow-testnet.ts` rerun after downgrading `@stellar/stellar-sdk`

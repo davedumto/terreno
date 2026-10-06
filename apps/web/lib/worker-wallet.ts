@@ -31,14 +31,26 @@ export class WalletDeploySubmissionError extends Error {
  *
  * This rebuilds a FRESH transaction sourced by the admin account (a real,
  * funded key, same trust tier as every other admin-authorized call in
- * lib/escrow.ts), reusing the SAME operation object and Soroban transaction
- * data, so the already-signed auth entry is never touched, only wrapped in
- * a new envelope with a real source/sequence/fee, which the admin then
- * signs. Confirmed byte-for-byte unchanged auth-entry XDR through this
- * rebuild, and the equivalent mechanism confirmed live on testnet, before
- * relying on it here. FeeBumpTransaction is NOT the right tool: it requires
- * the inner transaction to already carry a valid signature from a real,
- * spendable source account, which NULL_ACCOUNT can never have.
+ * lib/escrow.ts), reusing the SAME operation object, so the already-signed
+ * auth entry's rootInvocation and signature are never touched, only wrapped
+ * in a new envelope with a real source/sequence/fee, which the admin then
+ * signs. FeeBumpTransaction is NOT the right tool: it requires the inner
+ * transaction to already carry a valid signature from a real, spendable
+ * source account, which NULL_ACCOUNT can never have.
+ *
+ * Crucially, the Soroban transaction DATA (the resource footprint) is NOT
+ * reused from the original carrier: passkey-kit's signDeploy() mints a
+ * fresh random nonce when it signs the auth entry, but never re-simulates,
+ * so the carrier's own footprint still declares a LedgerKeyNonce for the
+ * ORIGINAL simulation's nonce, not the one actually signed. Submitting that
+ * footprint as-is fails on-chain with "trying to access nonce outside of
+ * the footprint" (reproduced for real; root-caused against Stellar's own
+ * host source, rs-soroban-env's auth.rs, and fix verified live on testnet:
+ * see docs/decisions.md, 2026-10-06). prepareTransaction() re-simulates
+ * the signed operation against the real admin-sourced transaction before
+ * it's built, so the resulting footprint matches the nonce that was
+ * actually signed. Confirmed empirically that re-simulation does not touch
+ * an auth entry whose signature is already non-void.
  */
 export async function submitWalletDeploy(carrierXdr: string): Promise<{ txHash: string }> {
   const rpcUrl = requireEnv("STELLAR_RPC_URL");
@@ -59,14 +71,12 @@ export async function submitWalletDeploy(carrierXdr: string): Promise<{ txHash: 
     throw new WalletDeploySubmissionError("carrier transaction is a fee-bump envelope, not a plain transaction");
   }
 
-  // Both the Soroban transaction data and the operation must come from the
-  // RAW envelope, not the friendly Transaction instance: v16's Transaction
-  // has no sorobanData getter at all, and TransactionBuilder.addOperation()
-  // requires the raw xdr.Operation class, not the friendly parsed object
+  // The operation must come from the RAW envelope, not the friendly
+  // Transaction instance: TransactionBuilder.addOperation() requires the
+  // raw xdr.Operation class, not the friendly parsed object
   // decoded.operations[0] returns (confirmed the hard way: passing the
   // friendly object throws "operation.sourceAccount is not a function").
   const rawTx = decoded.toEnvelope().v1().tx();
-  const sorobanData = rawTx.ext().sorobanData();
   const rawOperations = rawTx.operations();
   const rawOperation = rawOperations[0];
   if (rawOperations.length !== 1 || !rawOperation) {
@@ -84,14 +94,26 @@ export async function submitWalletDeploy(carrierXdr: string): Promise<{ txHash: 
     );
   }
 
-  const resourcedTx = new TransactionBuilder(adminAccount, {
+  // Deliberately no .setSorobanData() here: see the doc comment above.
+  // prepareTransaction() simulates this exact operation (auth entry
+  // included) against the real admin-sourced transaction and returns it
+  // fully assembled with a footprint that matches the signed nonce.
+  const unprepared = new TransactionBuilder(adminAccount, {
     fee: decoded.fee,
     networkPassphrase,
   })
-    .setSorobanData(sorobanData)
     .addOperation(rawOperation)
     .setTimeout(30)
     .build();
+
+  let resourcedTx;
+  try {
+    resourcedTx = await server.prepareTransaction(unprepared);
+  } catch (err) {
+    throw new WalletDeploySubmissionError(
+      `re-simulation failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
 
   resourcedTx.sign(adminKeypair);
 
@@ -104,8 +126,12 @@ export async function submitWalletDeploy(carrierXdr: string): Promise<{ txHash: 
 
   const result = await server.pollTransaction(sent.hash, { attempts: 20 });
   if (result.status !== Api.GetTransactionStatus.SUCCESS) {
+    const diagnostic =
+      "resultXdr" in result
+        ? ` resultXdr: ${result.resultXdr.toXDR("base64")}`
+        : "";
     throw new WalletDeploySubmissionError(
-      `wallet deploy transaction did not succeed: ${result.status}`,
+      `wallet deploy transaction did not succeed: ${result.status} (hash ${sent.hash}).${diagnostic}`,
     );
   }
 
