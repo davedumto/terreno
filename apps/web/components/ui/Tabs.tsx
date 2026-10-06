@@ -21,7 +21,7 @@ export function Tabs<T extends string>({ value, onChange, options }: TabsProps<T
             aria-selected={active}
             onClick={() => onChange(option.value)}
             className={`rounded-pill px-4 py-1.5 text-sm font-bold transition-colors duration-200 ${
-              active ? "border border-lime/20 bg-lime/10 text-lime" : "text-muted hover:text-ink"
+              active ? "bg-lime text-forest-ink" : "text-muted hover:text-ink"
             }`}
           >
             {option.label}

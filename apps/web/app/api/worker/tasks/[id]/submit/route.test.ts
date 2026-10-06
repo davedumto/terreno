@@ -251,7 +251,7 @@ describe("POST /api/worker/tasks/[id]/submit", () => {
     expect((await res.json()).error).toBe("invalid_answer");
   });
 
-  it("returns 503 when a photo is required but not provided (verify_place)", async () => {
+  it("returns 400 when a photo is required but not provided (verify_place)", async () => {
     const worker = await insertWorker();
     const task = await insertClaimedTask(worker.id);
     const token = await signSession({ workerId: worker.id });
@@ -261,8 +261,8 @@ describe("POST /api/worker/tasks/[id]/submit", () => {
       routeParams(task.id),
     );
 
-    expect(res.status).toBe(503);
-    expect((await res.json()).error).toBe("photo_required_not_yet_available");
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("photo_required");
     expect(releaseMock).not.toHaveBeenCalled();
   });
 

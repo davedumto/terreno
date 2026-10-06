@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { tasks } from "@/lib/db/schema";
+import { submissions, tasks } from "@/lib/db/schema";
 import { verifyTaskToken } from "@/lib/task-token";
+import { taskPhotoUrl } from "@/lib/cloudinary";
 
 // SPEC.md section 6: poll no more than every 10 seconds; 429 otherwise.
 // In-memory per-process; resets on deploy/restart and does not share
@@ -51,12 +52,28 @@ export async function GET(
   if (task.releaseTxHash) transactions.release = task.releaseTxHash;
   if (task.refundTxHash) transactions.refund = task.refundTxHash;
 
+  // Populated once a worker has actually submitted, not fabricated before
+  // then. A task can be "submitted" (release still pending) or
+  // "completed" (paid out) and have a real answer either way, so this
+  // reads independently of the status check above.
+  let result: { answer: unknown; photo_url: string | null } | undefined;
+  if (task.status === "submitted" || task.status === "completed") {
+    const [submission] = await db.select().from(submissions).where(eq(submissions.taskId, task.id));
+    if (submission) {
+      result = {
+        answer: submission.answer,
+        photo_url: submission.photoKey ? taskPhotoUrl(submission.photoKey) : null,
+      };
+    }
+  }
+
   return NextResponse.json({
     task_id: task.id,
     type: task.type,
     status: task.status,
-    // result and worker are populated once submissions (Phase 3) and
-    // reputation (Phase 5) exist; absent rather than fabricated until then.
+    // worker is populated once reputation (Phase 5) exists; absent rather
+    // than fabricated until then.
+    ...(result ? { result } : {}),
     transactions,
   });
 }

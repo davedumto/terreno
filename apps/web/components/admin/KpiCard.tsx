@@ -5,9 +5,9 @@ export type KpiTint = "mint" | "sun" | "lime" | "forest";
 interface KpiCardProps {
   label: string;
   value: string;
-  deltaPct: number | null;
-  href: string;
-  goLabel: string;
+  deltaPct?: number | null;
+  href?: string;
+  goLabel?: string;
   tint: KpiTint;
 }
 
@@ -25,14 +25,11 @@ const LABEL_CLASSES: Record<KpiTint, string> = {
   forest: "text-white/80",
 };
 
-export function KpiCard({ label, value, deltaPct, href, goLabel, tint }: KpiCardProps) {
+export function KpiCard({ label, value, deltaPct = null, href, goLabel, tint }: KpiCardProps) {
   const up = deltaPct !== null && deltaPct >= 0;
 
-  return (
-    <Link
-      href={href}
-      className={`group flex flex-col gap-3 rounded-lg border border-line p-6 transition-all duration-150 hover:-translate-y-[3px] hover:shadow-[var(--sh-hover)] ${TINT_CLASSES[tint]}`}
-    >
+  const content = (
+    <>
       <span className={`font-mono text-xs font-bold uppercase tracking-[.08em] ${LABEL_CLASSES[tint]}`}>
         {label}
       </span>
@@ -46,9 +43,25 @@ export function KpiCard({ label, value, deltaPct, href, goLabel, tint }: KpiCard
           {up ? "▲" : "▼"} {Math.abs(deltaPct).toFixed(1)}% vs prev
         </span>
       )}
-      <span className="mt-auto flex -translate-x-1 items-center gap-1 font-mono text-xs font-semibold opacity-0 transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100">
-        {goLabel} →
-      </span>
-    </Link>
+      {href && goLabel && (
+        <span className="mt-auto flex -translate-x-1 items-center gap-1 font-mono text-xs font-semibold opacity-0 transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100">
+          {goLabel} →
+        </span>
+      )}
+    </>
   );
+
+  const className = `group flex flex-col gap-3 rounded-lg border border-line p-6 ${TINT_CLASSES[tint]} ${
+    href ? "transition-all duration-150 hover:-translate-y-[3px] hover:shadow-[var(--sh-hover)]" : ""
+  }`;
+
+  if (href) {
+    return (
+      <Link href={href} className={className}>
+        {content}
+      </Link>
+    );
+  }
+
+  return <div className={className}>{content}</div>;
 }

@@ -7,7 +7,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "echo no-op",
     "e2e:escrow": "tsx e2e-escrow-testnet.ts",
-    "e2e:worker-flow": "tsx e2e-worker-flow-testnet.ts"
+    "e2e:worker-flow": "tsx e2e-worker-flow-testnet.ts",
+    "demo:agent-pays": "tsx demo-agent-pays.ts"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "16.3.1",

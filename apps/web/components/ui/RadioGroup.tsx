@@ -28,8 +28,10 @@ export function RadioGroup<T extends string>({
             type="button"
             aria-pressed={value === option}
             onClick={() => onChange(option)}
-            className={`rounded-md border px-3 py-1.5 text-sm transition-colors duration-200 outline-none focus-visible:outline-2 focus-visible:outline-lime focus-visible:outline-offset-[3px] ${
-              value === option ? "border-lime bg-lime/10 text-lime" : "border-line text-muted hover:text-ink"
+            className={`rounded-md border px-3 py-1.5 text-sm font-semibold transition-colors duration-200 outline-none focus-visible:outline-2 focus-visible:outline-lime focus-visible:outline-offset-[3px] ${
+              value === option
+                ? "border-lime bg-lime text-forest-ink"
+                : "border-line text-muted hover:text-ink"
             }`}
           >
             {optionLabel(option)}

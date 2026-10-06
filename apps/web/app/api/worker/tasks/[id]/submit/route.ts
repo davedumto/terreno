@@ -79,11 +79,12 @@ export async function POST(
   }
 
   if ((task.type === "verify_place" || task.type === "check_price") && !parsed.data.photo_key) {
-    // SPEC.md section 10: a photo is required for these two types. Photo
-    // upload itself is stubbed (R2 is not configured yet), so this is
-    // reachable today and reported as a clear, specific error rather than
-    // silently accepted without a photo; see docs/decisions.md.
-    return NextResponse.json({ error: "photo_required_not_yet_available" }, { status: 503 });
+    // SPEC.md section 10: a photo is required for these two types. Upload
+    // itself is a real, working route now (see lib/cloudinary.ts); a
+    // missing photo_key here means the client's own PhotoPicker never
+    // completed an upload before submit, a client-input problem, not a
+    // server capability gap.
+    return NextResponse.json({ error: "photo_required" }, { status: 400 });
   }
 
   const submittedAt = Date.now();

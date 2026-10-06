@@ -5,7 +5,7 @@ import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { ulid } from "ulid";
 import * as schema from "@/lib/db/schema";
-import { tasks } from "@/lib/db/schema";
+import { submissions, tasks, workers } from "@/lib/db/schema";
 import { hashTaskToken } from "@/lib/task-token";
 
 let testDb: Awaited<ReturnType<typeof freshDb>>;
@@ -21,6 +21,10 @@ vi.mock("@/lib/db", () => ({
   get db() {
     return testDb;
   },
+}));
+
+vi.mock("@/lib/cloudinary", () => ({
+  taskPhotoUrl: (publicId: string) => `https://res.cloudinary.com/demo/image/upload/${publicId}.jpg`,
 }));
 
 const { GET } = await import("./route");
@@ -45,6 +49,25 @@ function baseTaskFields(overrides: Partial<typeof tasks.$inferInsert> = {}) {
     updatedAt: now,
     ...overrides,
   };
+}
+
+async function insertWorker() {
+  const [row] = await testDb
+    .insert(workers)
+    .values({
+      id: ulid(),
+      displayName: "Chidi",
+      walletAddress: `C${ulid()}`,
+      passkeyCredentialId: ulid(),
+      country: "NG",
+      city: "enugu",
+      languages: ["en"],
+      status: "active",
+      createdAt: Date.now(),
+    })
+    .returning();
+  if (!row) throw new Error("insert failed");
+  return row;
 }
 
 function getRequest(id: string, token?: string): NextRequest {
@@ -133,6 +156,68 @@ describe("GET /api/tasks/[id]", () => {
 
     const body = await res.json();
     expect(body.transactions.refund).toBe("REFUNDTX1");
+  });
+
+  it("does not include a result for an open task (nothing submitted yet)", async () => {
+    const task = baseTaskFields();
+    await testDb.insert(tasks).values(task);
+
+    const res = await GET(getRequest(task.id, "tr_tok_test"), {
+      params: Promise.resolve({ id: task.id }),
+    });
+
+    const body = await res.json();
+    expect(body.result).toBeUndefined();
+  });
+
+  it("includes the real answer and photo url for a completed task with a photo", async () => {
+    const worker = await insertWorker();
+    const task = baseTaskFields({ status: "completed", releaseTxHash: "RELEASETX1" });
+    await testDb.insert(tasks).values(task);
+    await testDb.insert(submissions).values({
+      id: ulid(),
+      taskId: task.id,
+      workerId: worker.id,
+      answer: { exists: "yes", open_now: "yes" },
+      photoKey: "terreno/task-photos/" + task.id,
+      createdAt: Date.now(),
+    });
+
+    const res = await GET(getRequest(task.id, "tr_tok_test"), {
+      params: Promise.resolve({ id: task.id }),
+    });
+
+    const body = await res.json();
+    expect(body.result.answer).toEqual({ exists: "yes", open_now: "yes" });
+    expect(body.result.photo_url).toBe(
+      `https://res.cloudinary.com/demo/image/upload/terreno/task-photos/${task.id}.jpg`,
+    );
+  });
+
+  it("includes a result with a null photo_url when the submission has no photo (translate tasks)", async () => {
+    const worker = await insertWorker();
+    const task = baseTaskFields({
+      type: "translate",
+      status: "submitted",
+      input: { target_language: "fr" },
+    });
+    await testDb.insert(tasks).values(task);
+    await testDb.insert(submissions).values({
+      id: ulid(),
+      taskId: task.id,
+      workerId: worker.id,
+      answer: { translation: "Bonjour" },
+      photoKey: null,
+      createdAt: Date.now(),
+    });
+
+    const res = await GET(getRequest(task.id, "tr_tok_test"), {
+      params: Promise.resolve({ id: task.id }),
+    });
+
+    const body = await res.json();
+    expect(body.result.answer).toEqual({ translation: "Bonjour" });
+    expect(body.result.photo_url).toBeNull();
   });
 
   it("rate-limits a second poll within 10 seconds", async () => {

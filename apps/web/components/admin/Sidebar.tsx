@@ -23,7 +23,7 @@ export function Sidebar() {
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={`rounded-xl px-4 py-3 text-[15px] font-semibold transition-colors duration-150 ${
-                active ? "border-l-[3px] border-lime bg-transparent pl-[13px] text-lime" : "text-muted hover:bg-chip"
+                active ? "bg-lime-soft text-forest-ink" : "text-muted hover:bg-chip"
               }`}
             >
               {item.label}

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Field } from "@/components/ui/Field";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { KpiCard } from "@/components/admin/KpiCard";
 
 interface MeResponse {
   display_name: string;
@@ -80,39 +80,32 @@ export default function MePage() {
   }
 
   return (
-    <main className="mx-auto max-w-md px-4 py-8">
-      <h1 className="font-display text-[1.75rem] font-extrabold tracking-[-0.01em] text-ink">
-        {me.display_name}
-      </h1>
-      <p className="text-sm text-muted">
+    <main className="mx-auto max-w-2xl px-4 py-8">
+      <p className="font-mono text-[.75rem] font-bold uppercase tracking-[.22em] text-muted2">
         {me.city}, {me.country}
       </p>
+      <h1 className="mt-1 font-display text-[1.75rem] font-extrabold tracking-[-0.01em] text-ink">
+        {me.display_name}
+      </h1>
 
-      <section className="mt-6 rounded-lg border border-line bg-surface p-4">
-        <p className="text-[.6875rem] font-bold uppercase tracking-[.14em] text-muted2">Balance</p>
-        {me.balance.usdc === null ? (
-          <p className="mt-1 text-muted">Balance unavailable right now</p>
-        ) : (
-          <>
-            <p className="mt-1 font-display text-[clamp(2rem,1.6rem+1.4vw,3rem)] font-extrabold leading-none text-ink">
-              {me.balance.usdc.toFixed(2)} <span className="text-[1rem] font-bold text-muted2">USDC</span>
-            </p>
-            {me.balance.approx_local && (
-              <p className="mt-1 text-sm text-muted">
-                ≈ {Math.round(me.balance.approx_local.amount).toLocaleString()}{" "}
-                {me.balance.approx_local.currency}
-              </p>
-            )}
-          </>
-        )}
-      </section>
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <KpiCard
+          label="Balance"
+          value={me.balance.usdc === null ? "—" : `${me.balance.usdc.toFixed(2)} USDC`}
+          tint="forest"
+        />
+        <KpiCard label="Completed" value={String(me.completed_tasks)} tint="mint" />
+        <KpiCard label="Score" value={me.score.toFixed(2)} tint="sun" />
+      </div>
 
-      <section className="mt-4 grid grid-cols-2 gap-3">
-        <Field label="Completed" value={me.completed_tasks} />
-        <Field label="Score" value={me.score.toFixed(2)} />
-      </section>
+      {me.balance.usdc !== null && me.balance.approx_local && (
+        <p className="mt-2 text-right text-sm text-muted">
+          ≈ {Math.round(me.balance.approx_local.amount).toLocaleString()}{" "}
+          {me.balance.approx_local.currency}
+        </p>
+      )}
 
-      <section className="mt-6">
+      <section className="mt-8">
         <h2 className="font-mono text-[.75rem] font-bold uppercase tracking-[.22em] text-muted2">
           Earnings history
         </h2>
@@ -129,32 +122,49 @@ export default function MePage() {
             />
           </div>
         ) : (
-          <ul className="mt-2 space-y-2">
-            {me.earnings.map((entry) => (
-              <li
-                key={entry.task_id}
-                className="flex items-center justify-between rounded-lg border border-line bg-surface p-3"
-              >
-                <div>
-                  <p className="text-sm text-ink">{entry.type.replace("_", " ")}</p>
-                  <p className="font-mono text-xs text-muted2">
-                    {new Date(entry.completed_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-ink">{entry.paid_usdc.toFixed(2)} USDC</p>
-                  <a
-                    href={entry.release_tx}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-mono text-xs text-forest underline decoration-mint decoration-2 underline-offset-[3px] hover:text-ink"
-                  >
-                    view tx
-                  </a>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <div className="mt-3 overflow-hidden rounded-lg border border-line bg-surface">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  <th className="border-b border-line px-4 py-3 text-left font-mono text-[11px] font-bold uppercase tracking-[.14em] text-muted2">
+                    Task
+                  </th>
+                  <th className="border-b border-line px-4 py-3 text-left font-mono text-[11px] font-bold uppercase tracking-[.14em] text-muted2">
+                    Date
+                  </th>
+                  <th className="border-b border-line px-4 py-3 text-right font-mono text-[11px] font-bold uppercase tracking-[.14em] text-muted2">
+                    Paid
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {me.earnings.map((entry) => (
+                  <tr key={entry.task_id} className="transition-colors duration-150 hover:bg-chip">
+                    <td className="border-b border-line px-4 py-3.5 text-sm text-ink">
+                      {entry.type.replace(/_/g, " ")}
+                    </td>
+                    <td className="border-b border-line px-4 py-3.5 font-mono text-xs text-muted2">
+                      {new Date(entry.completed_at).toLocaleDateString()}
+                    </td>
+                    <td className="border-b border-line px-4 py-3.5 text-right">
+                      <div className="font-display text-sm font-bold tabular-nums text-ink">
+                        {entry.paid_usdc.toFixed(2)}{" "}
+                        <span className="font-mono text-xs font-normal text-muted2">USDC</span>
+                      </div>
+                      <a
+                        href={entry.release_tx}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-xs text-forest underline decoration-mint decoration-2 underline-offset-[3px] hover:text-ink"
+                      >
+                        view tx
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 

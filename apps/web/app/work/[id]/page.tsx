@@ -156,6 +156,7 @@ export default function TaskDetailPage({ params }: { params: Promise<{ id: strin
 
       {task.status === "claimed" && task.is_own_claim && (
         <AnswerForm
+          taskId={id}
           type={task.type}
           onSubmit={handleSubmit}
           submitting={submitState === "submitting"}
@@ -213,47 +214,118 @@ function taskTitle(task: TaskDetail): string {
 }
 
 function AnswerForm({
+  taskId,
   type,
   onSubmit,
   submitting,
   error,
 }: {
+  taskId: string;
   type: TaskDetail["type"];
   onSubmit: (answer: Record<string, unknown>, photoKey?: string) => void;
   submitting: boolean;
   error: string | null;
 }) {
-  if (type === "verify_place") return <VerifyPlaceForm onSubmit={onSubmit} submitting={submitting} error={error} />;
-  if (type === "check_price") return <CheckPriceForm onSubmit={onSubmit} submitting={submitting} error={error} />;
+  if (type === "verify_place")
+    return <VerifyPlaceForm taskId={taskId} onSubmit={onSubmit} submitting={submitting} error={error} />;
+  if (type === "check_price")
+    return <CheckPriceForm taskId={taskId} onSubmit={onSubmit} submitting={submitting} error={error} />;
   return <TranslateForm onSubmit={onSubmit} submitting={submitting} error={error} />;
 }
 
-function PhotoStub() {
+type PhotoState = "idle" | "uploading" | "done" | "error";
+
+function PhotoPicker({
+  taskId,
+  photoKey,
+  onUploaded,
+}: {
+  taskId: string;
+  photoKey: string | null;
+  onUploaded: (photoKey: string | null) => void;
+}) {
+  const [state, setState] = useState<PhotoState>("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setError(null);
+    setState("uploading");
+    onUploaded(null);
+    setPreviewUrl(URL.createObjectURL(file));
+
+    try {
+      const formData = new FormData();
+      formData.set("photo", file);
+      const res = await fetch(`/api/worker/tasks/${taskId}/photo`, { method: "POST", body: formData });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(photoErrorMessage(body.error));
+      }
+      const body = await res.json();
+      setState("done");
+      onUploaded(body.photo_key);
+    } catch (err) {
+      setState("error");
+      setError(err instanceof Error ? err.message : "Could not upload photo.");
+    }
+  }
+
   return (
-    <p className="rounded-md bg-sun-soft p-3 text-xs text-forest-ink">
-      Photo upload isn&apos;t available yet. Submitting without one for now.
-    </p>
+    <div>
+      <span className="mb-1 block text-sm text-muted">Photo</span>
+      {previewUrl && (
+        // eslint-disable-next-line @next/next/no-img-element -- a blob: preview URL, not something next/image's optimizer can handle
+        <img src={previewUrl} alt="" className="mb-2 h-32 w-full rounded-md object-cover" />
+      )}
+      <label className="flex h-11 w-full cursor-pointer items-center justify-center rounded-md border border-line bg-surface2 text-sm text-ink hover:border-lime">
+        <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileChange} />
+        {state === "uploading"
+          ? "Uploading…"
+          : state === "done" && photoKey
+            ? "Photo attached · change"
+            : "Choose a photo"}
+      </label>
+      <FieldError error={error} />
+    </div>
   );
 }
 
+function photoErrorMessage(code: string | undefined): string {
+  switch (code) {
+    case "bad_type":
+      return "Use a JPEG, PNG, or WebP photo.";
+    case "too_large":
+      return "That photo is too large (8MB max).";
+    default:
+      return "Could not upload photo. Try again.";
+  }
+}
+
 function VerifyPlaceForm({
+  taskId,
   onSubmit,
   submitting,
   error,
 }: {
-  onSubmit: (answer: Record<string, unknown>) => void;
+  taskId: string;
+  onSubmit: (answer: Record<string, unknown>, photoKey?: string) => void;
   submitting: boolean;
   error: string | null;
 }) {
   const [exists, setExists] = useState<"yes" | "no">("yes");
   const [openNow, setOpenNow] = useState<"yes" | "no" | "cant_tell">("yes");
   const [notes, setNotes] = useState("");
+  const [photoKey, setPhotoKey] = useState<string | null>(null);
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit({ exists, open_now: openNow, notes: notes || undefined });
+        onSubmit({ exists, open_now: openNow, notes: notes || undefined }, photoKey ?? undefined);
       }}
       className="mt-6 space-y-4"
     >
@@ -272,7 +344,7 @@ function VerifyPlaceForm({
         optionLabel={optionLabel}
       />
       <Textarea label="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={300} rows={3} />
-      <PhotoStub />
+      <PhotoPicker taskId={taskId} photoKey={photoKey} onUploaded={setPhotoKey} />
       <Button type="submit" variant="sun" disabled={submitting} className="w-full">
         {submitting ? "Submitting…" : "Submit answer"}
       </Button>
@@ -282,11 +354,13 @@ function VerifyPlaceForm({
 }
 
 function CheckPriceForm({
+  taskId,
   onSubmit,
   submitting,
   error,
 }: {
-  onSubmit: (answer: Record<string, unknown>) => void;
+  taskId: string;
+  onSubmit: (answer: Record<string, unknown>, photoKey?: string) => void;
   submitting: boolean;
   error: string | null;
 }) {
@@ -294,18 +368,22 @@ function CheckPriceForm({
   const [price, setPrice] = useState("");
   const [inStock, setInStock] = useState<"yes" | "no" | "cant_tell">("yes");
   const [notes, setNotes] = useState("");
+  const [photoKey, setPhotoKey] = useState<string | null>(null);
 
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
         const parsedPrice = price.trim() ? Number(price) : undefined;
-        onSubmit({
-          found,
-          price: parsedPrice,
-          in_stock: inStock,
-          notes: notes || undefined,
-        });
+        onSubmit(
+          {
+            found,
+            price: parsedPrice,
+            in_stock: inStock,
+            notes: notes || undefined,
+          },
+          photoKey ?? undefined,
+        );
       }}
       className="mt-6 space-y-4"
     >
@@ -326,7 +404,7 @@ function CheckPriceForm({
         optionLabel={optionLabel}
       />
       <Textarea label="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={300} rows={3} />
-      <PhotoStub />
+      <PhotoPicker taskId={taskId} photoKey={photoKey} onUploaded={setPhotoKey} />
       <Button type="submit" variant="sun" disabled={submitting} className="w-full">
         {submitting ? "Submitting…" : "Submit answer"}
       </Button>
@@ -406,8 +484,8 @@ function submitErrorMessage(code: string | undefined): string {
       return "The deadline for this task has passed.";
     case "invalid_answer":
       return "Check your answer and try again.";
-    case "photo_required_not_yet_available":
-      return "A photo is required for this task type, and upload isn't available yet.";
+    case "photo_required":
+      return "This task needs a photo before you can submit.";
     default:
       return "Could not submit your answer. Try again.";
   }
