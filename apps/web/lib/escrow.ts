@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { Keypair } from "@stellar/stellar-sdk";
 import type { AssembledTransaction, Result } from "@stellar/stellar-sdk/contract";
 import { Client, KeypairSigner } from "@stellar/stellar-sdk/contract";
-import { requireEnv } from "./env";
+import { requireEnv, testnetPassphrase } from "./env";
 
 /** SPEC.md section 5: the task's ULID, hashed to 32 bytes as the escrow's Task(BytesN<32>) key. */
 export function taskIdToEscrowKey(taskId: string): Buffer {
@@ -239,12 +239,4 @@ export function escrowConfigFromEnv(): EscrowConfig {
     adminSecretKey,
     treasurySecretKey,
   };
-}
-
-function testnetPassphrase(): string {
-  const network = process.env.STELLAR_NETWORK;
-  if (network !== "testnet") {
-    throw new Error(`STELLAR_NETWORK must be "testnet", got ${JSON.stringify(network)}`);
-  }
-  return "Test SDF Network ; September 2015";
 }

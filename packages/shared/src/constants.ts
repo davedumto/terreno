@@ -24,3 +24,12 @@ export const LIVE_CITY_MIN_ACTIVE_WORKERS = 2;
 
 export const RATE_LIMIT_PAID_TASKS_PER_PAYER_PER_HOUR = 20;
 export const RATE_LIMIT_REQUESTS_PER_IP_PER_MINUTE = 60;
+
+// SPEC.md section 10: "an approximate local value" for /me's payout display,
+// explicitly not a live rate. As-of ~2026-09, 1 USD in local currency.
+// Revisit if this drifts noticeably before the demo.
+export const APPROX_USD_TO_LOCAL: Record<"NG" | "CL" | "CR", { currency: string; rate: number }> = {
+  NG: { currency: "NGN", rate: 1326 },
+  CL: { currency: "CLP", rate: 909 },
+  CR: { currency: "CRC", rate: 454 },
+};
