@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `tasks_one_active_claim_per_worker_idx` ON `tasks` (`worker_id`) WHERE "tasks"."status" = 'claimed';

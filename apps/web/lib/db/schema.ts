@@ -53,6 +53,12 @@ export const tasks = sqliteTable(
     index("tasks_status_country_city_idx").on(t.status, t.country, t.city),
     index("tasks_status_deadline_at_idx").on(t.status, t.deadlineAt),
     index("tasks_status_claim_expires_at_idx").on(t.status, t.claimExpiresAt),
+    // SPEC.md section 12: one active claim per worker at a time. Enforced
+    // at the database level, not just checked in application code, so two
+    // concurrent claim requests from the same worker can't both succeed.
+    uniqueIndex("tasks_one_active_claim_per_worker_idx")
+      .on(t.workerId)
+      .where(sql`${t.status} = 'claimed'`),
     check(
       "tasks_type_check",
       sql`${t.type} in ('verify_place', 'check_price', 'translate')`,

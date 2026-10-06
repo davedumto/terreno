@@ -5,22 +5,16 @@ import { tasks } from "@/lib/db/schema";
 import { transition } from "@/lib/db/transition";
 import { processX402Request, resourceConfigFor } from "@/lib/x402";
 import { isCityLive } from "@/lib/coverage";
-import { createTask as escrowCreateTask, escrowConfigFromEnv } from "@/lib/escrow";
+import {
+  createTask as escrowCreateTask,
+  escrowConfigFromEnv,
+  taskIdToEscrowKey,
+} from "@/lib/escrow";
+import { requireEnv } from "@/lib/env";
 import { generateTaskToken, hashTaskToken } from "@/lib/task-token";
-import { createHash } from "node:crypto";
 import { ulid } from "ulid";
 
 const AMOUNT_STROOPS = TASK_PRICES_STROOPS.verify_place;
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} is not set`);
-  return value;
-}
-
-function taskIdToEscrowKey(taskId: string): Buffer {
-  return createHash("sha256").update(taskId).digest();
-}
 
 export async function POST(req: NextRequest): Promise<Response> {
   let body: unknown;

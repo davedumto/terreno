@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, DrizzleQueryError, eq } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import { tasks, taskEvents } from "./schema";
 import { ulid } from "ulid";
@@ -17,6 +17,35 @@ export class TransitionError extends Error {
     super(`Invalid transition: ${from} -> ${to}`);
     this.name = "TransitionError";
   }
+}
+
+/**
+ * Thrown when a concurrent write beat this one to the same invariant:
+ * either the task's status no longer matched what the caller read (the
+ * AND status = <from> guard matched zero rows), or a database constraint
+ * caught a conflict the guard doesn't cover, e.g. SPEC.md section 12's "one
+ * active claim per worker" partial unique index. Either way the caller
+ * should re-read and decide whether to retry or treat the loss as normal
+ * ("someone else won"), not surface it as a server error. Distinct from
+ * TransitionError, which means the (from, to) pair itself is never valid.
+ */
+export class ConcurrentTransitionError extends Error {
+  constructor(
+    public readonly taskId: string,
+    public readonly expectedFrom: TaskStatus,
+  ) {
+    super(`task ${taskId} was no longer "${expectedFrom}" when the transition ran`);
+    this.name = "ConcurrentTransitionError";
+  }
+}
+
+/** True for a SQLite UNIQUE/CHECK constraint violation, unwrapped from Drizzle's query-error wrapper. */
+function isConstraintViolation(err: unknown): boolean {
+  if (!(err instanceof DrizzleQueryError)) {
+    return false;
+  }
+  const cause = err.cause as { code?: string } | undefined;
+  return cause?.code === "SQLITE_CONSTRAINT";
 }
 
 interface TransitionRule {
@@ -94,17 +123,38 @@ function requireNumber(ctx: Record<string, unknown>, key: string): number {
   return value;
 }
 
+export interface TransitionOptions {
+  /**
+   * Overrides the edge's default task_events.kind for this call. The same
+   * (from, to) edge can represent more than one real event (e.g.
+   * claimed -> open happens both on a genuine 15-minute claim expiry and on
+   * an immediate on-chain assign() failure rollback); the default kind only
+   * fits one of those, so a caller representing the other must say so
+   * explicitly rather than have it logged under the wrong label.
+   */
+  eventKind?: TaskEventKind;
+}
+
 /**
  * Enforces SPEC.md section 4's transition table. Any (from, to) pair not in
  * RULES throws TransitionError. Writes the new status and a task_events row
  * in one database transaction, run against `db` (a transaction handle if
  * the caller is already inside one, so this composes).
+ *
+ * The update is guarded by `AND status = <task.status>` (SPEC.md section
+ * 12's atomic claim pattern, generalized to every edge): if another writer
+ * already moved the task off that status, zero rows match and this throws
+ * ConcurrentTransitionError instead of overwriting that write. Callers racing
+ * for the same edge (two workers claiming, two sweeper ticks releasing) must
+ * re-read the task and decide whether to retry or treat the loss as normal
+ * ("someone else won").
  */
 export async function transition(
   db: DB,
   task: Task,
   to: TaskStatus,
   ctx: Record<string, unknown> = {},
+  options: TransitionOptions = {},
 ): Promise<Task> {
   const rule = RULES[task.status]?.[to];
   if (!rule) {
@@ -114,20 +164,28 @@ export async function transition(
   const now = Date.now();
   const columnUpdates = rule.columns?.(ctx) ?? {};
 
-  const [updated] = await db
-    .update(tasks)
-    .set({ ...columnUpdates, status: to, updatedAt: now })
-    .where(eq(tasks.id, task.id))
-    .returning();
+  let updated: Task | undefined;
+  try {
+    [updated] = await db
+      .update(tasks)
+      .set({ ...columnUpdates, status: to, updatedAt: now })
+      .where(and(eq(tasks.id, task.id), eq(tasks.status, task.status)))
+      .returning();
+  } catch (err) {
+    if (isConstraintViolation(err)) {
+      throw new ConcurrentTransitionError(task.id, task.status);
+    }
+    throw err;
+  }
 
   if (!updated) {
-    throw new Error(`transition: task ${task.id} not found during update`);
+    throw new ConcurrentTransitionError(task.id, task.status);
   }
 
   await db.insert(taskEvents).values({
     id: ulid(),
     taskId: task.id,
-    kind: rule.eventKind,
+    kind: options.eventKind ?? rule.eventKind,
     data: ctx,
     createdAt: now,
   });

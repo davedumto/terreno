@@ -1,4 +1,5 @@
 import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
+import { requireEnv } from "../env";
 import * as schema from "./schema";
 
 type Schema = typeof schema;
@@ -10,13 +11,9 @@ type Schema = typeof schema;
 let instance: LibSQLDatabase<Schema> | undefined;
 
 function createDb(): LibSQLDatabase<Schema> {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    throw new Error("DATABASE_URL is not set");
-  }
   return drizzle({
     connection: {
-      url: databaseUrl,
+      url: requireEnv("DATABASE_URL"),
       authToken: process.env.DATABASE_AUTH_TOKEN,
     },
     schema,

@@ -6,7 +6,13 @@ import { ulid } from "ulid";
 import * as schema from "./schema";
 import { tasks, taskEvents, workers } from "./schema";
 import { eq } from "drizzle-orm";
-import { transition, TransitionError, type Task, type TaskStatus } from "./transition";
+import {
+  transition,
+  ConcurrentTransitionError,
+  TransitionError,
+  type Task,
+  type TaskStatus,
+} from "./transition";
 
 async function freshDb() {
   const client = createClient({ url: ":memory:" });
@@ -252,5 +258,110 @@ describe("transition", () => {
     await expect(transition(db, task, "claimed", { workerId: "worker-1" })).rejects.toThrow(
       /missing required number field "claimedAt"/,
     );
+  });
+
+  // ---- concurrent transitions: the in-memory task object going stale ----
+
+  it("throws ConcurrentTransitionError if the task already moved off the expected status", async () => {
+    const task = await insertTask(db, { status: "open" });
+    const workerA = await insertWorker(db);
+    const workerB = await insertWorker(db);
+
+    // workerA's claim lands first in the database...
+    await transition(db, task, "claimed", { workerId: workerA, claimedAt: Date.now() });
+
+    // ...but workerB is still holding the pre-claim `task` object (status:
+    // "open") read before workerA's write, exactly as two concurrent HTTP
+    // requests would both read the row before either writes.
+    await expect(
+      transition(db, task, "claimed", { workerId: workerB, claimedAt: Date.now() }),
+    ).rejects.toThrow(ConcurrentTransitionError);
+
+    // workerA's claim must be untouched: no silent overwrite, no second event.
+    const [reloaded] = await db.select().from(tasks).where(eq(tasks.id, task.id));
+    expect(reloaded?.workerId).toBe(workerA);
+    const events = await eventsFor(db, task.id);
+    expect(events).toHaveLength(1);
+  });
+
+  it("ConcurrentTransitionError reports the task id and the stale expected status", async () => {
+    const task = await insertTask(db, { status: "open" });
+    await transition(db, task, "refunded", { refundTxHash: "REFUNDTX4" });
+
+    try {
+      await transition(db, task, "claimed", { workerId: "worker-1", claimedAt: Date.now() });
+      expect.unreachable("expected transition to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ConcurrentTransitionError);
+      expect((error as ConcurrentTransitionError).taskId).toBe(task.id);
+      expect((error as ConcurrentTransitionError).expectedFrom).toBe("open");
+    }
+  });
+
+  it("throws ConcurrentTransitionError when the worker already holds a different claimed task", async () => {
+    // SPEC.md section 12: one active claim per worker, enforced by a
+    // partial unique index on tasks(worker_id) WHERE status = 'claimed',
+    // not by transition()'s own AND status = <from> guard (that guard only
+    // protects the single row being updated, not this cross-row invariant).
+    const workerId = await insertWorker(db);
+    const firstClaim = await insertTask(db, {
+      status: "claimed",
+      workerId,
+      claimedAt: Date.now(),
+      claimExpiresAt: Date.now() + 1000,
+    });
+    const secondTask = await insertTask(db, { status: "open" });
+
+    await expect(
+      transition(db, secondTask, "claimed", { workerId, claimedAt: Date.now() }),
+    ).rejects.toThrow(ConcurrentTransitionError);
+
+    // Neither task was corrupted: the first claim still stands, the second
+    // never moved off open, and no stray event was logged for the failure.
+    const [reloadedFirst] = await db.select().from(tasks).where(eq(tasks.id, firstClaim.id));
+    expect(reloadedFirst?.status).toBe("claimed");
+    const [reloadedSecond] = await db.select().from(tasks).where(eq(tasks.id, secondTask.id));
+    expect(reloadedSecond?.status).toBe("open");
+    const events = await eventsFor(db, secondTask.id);
+    expect(events).toHaveLength(0);
+  });
+
+  it("eventKind option overrides the edge's default task_events.kind", async () => {
+    const task = await insertTask(db, { status: "claimed" });
+
+    const updated = await transition(db, task, "open", {}, { eventKind: "failed" });
+
+    expect(updated.status).toBe("open");
+    const events = await eventsFor(db, task.id);
+    expect(events).toHaveLength(1);
+    expect(events[0]?.kind).toBe("failed");
+  });
+
+  it("omitting the options param keeps logging the edge's default kind", async () => {
+    const task = await insertTask(db, { status: "claimed" });
+
+    await transition(db, task, "open", {});
+
+    const events = await eventsFor(db, task.id);
+    expect(events[0]?.kind).toBe("claim_expired");
+  });
+
+  it("a fresh re-read after losing the race can transition successfully", async () => {
+    const task = await insertTask(db, { status: "claimed" });
+    await transition(db, task, "open", {}); // simulates a claim_expired reopening it
+
+    // The caller who lost the first race re-reads and retries against the
+    // now-current row, rather than reusing the stale `task` object.
+    const [refreshed] = await db.select().from(tasks).where(eq(tasks.id, task.id));
+    if (!refreshed) throw new Error("reload failed");
+
+    const workerId = await insertWorker(db);
+    const updated = await transition(db, refreshed, "claimed", {
+      workerId,
+      claimedAt: Date.now(),
+    });
+
+    expect(updated.status).toBe("claimed");
+    expect(updated.workerId).toBe(workerId);
   });
 });

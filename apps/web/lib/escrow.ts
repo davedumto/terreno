@@ -1,6 +1,13 @@
+import { createHash } from "node:crypto";
 import { Keypair } from "@stellar/stellar-sdk";
 import type { AssembledTransaction, Result } from "@stellar/stellar-sdk/contract";
 import { Client, KeypairSigner } from "@stellar/stellar-sdk/contract";
+import { requireEnv } from "./env";
+
+/** SPEC.md section 5: the task's ULID, hashed to 32 bytes as the escrow's Task(BytesN<32>) key. */
+export function taskIdToEscrowKey(taskId: string): Buffer {
+  return createHash("sha256").update(taskId).digest();
+}
 
 export type TaskStatus = "Locked" | "Assigned" | "Released" | "Refunded";
 
@@ -232,14 +239,6 @@ export function escrowConfigFromEnv(): EscrowConfig {
     adminSecretKey,
     treasurySecretKey,
   };
-}
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`${name} is not set`);
-  }
-  return value;
 }
 
 function testnetPassphrase(): string {
