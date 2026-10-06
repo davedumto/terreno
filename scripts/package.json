@@ -6,10 +6,13 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "echo no-op",
-    "e2e:escrow": "tsx e2e-escrow-testnet.ts"
+    "e2e:escrow": "tsx e2e-escrow-testnet.ts",
+    "e2e:worker-flow": "tsx e2e-worker-flow-testnet.ts"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "16.3.1",
+    "@x402/core": "2.22.0",
+    "@x402/stellar": "2.22.0",
     "web": "workspace:*"
   },
   "devDependencies": {

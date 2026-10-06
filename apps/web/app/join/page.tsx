@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { getPasskeyKit } from "@/lib/passkey-client";
 
 const COUNTRIES = [
@@ -213,7 +214,7 @@ export default function JoinPage() {
         </Field>
 
         <p className="text-xs text-neutral-500">
-          By joining you agree to the <a href="/rules" className="underline">worker rules</a>.
+          By joining you agree to the <Link href="/rules" className="underline">worker rules</Link>.
         </p>
 
         {error && <p className="text-sm text-red-600">{error}</p>}

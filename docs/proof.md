@@ -24,6 +24,32 @@ WebAuthn options shape) but succeeded on retry; noted as a possible
 intermittent authenticator-compatibility issue to watch for, not something
 fixed in this project's own code.
 
+## Phase 3: full agent-pays-to-worker-gets-paid pipeline, real worker
+
+2026-10-06: `scripts/e2e-worker-flow-testnet.ts` (the treasury's own key
+standing in as the x402 payer, a genuine worker's real session) ran the
+complete pipeline against the real dev server and real testnet for the
+first time: a real x402 payment settles
+([`a578647a...e849bdda`](https://stellar.expert/explorer/testnet/tx/a578647a4877a8e181d34ea966f5e7c1d678c01477e48bfa270f90b0e849bdda)),
+the server locks escrow
+([`50a10eef...8c71e`](https://stellar.expert/explorer/testnet/tx/50a10eef42eb69ab16d41d8059cdd0d8d29e2b14323ad0b0a28c9cda3148c71e)),
+David's real worker claims it, submits an answer, and release pays out
+([`84ea5b56...02bb049`](https://stellar.expert/explorer/testnet/tx/84ea5b56b0e5096052890732e983072d5365b4fae9058ee66b8f6db2902bb049)).
+`GET /api/tasks/{id}` (the agent-facing poll endpoint) correctly reports
+`status: "completed"` with all three transaction hashes. `GET
+/api/worker/me` confirmed the real on-chain effect: `balance.usdc: 0.45`
+(the verified 10% fee correctly applied, not the `tasks.fee = 0` bug found
+and fixed earlier this session), `completed_tasks: 1`, `score` recomputed
+upward, a real earnings entry with the real release tx link.
+
+A second, throwaway active worker in Enugu was temporarily inserted and
+then deleted so the city satisfied SPEC.md section 12's live-city coverage
+rule (at least 2 active workers) for this test; the no-coverage rejection
+itself fired correctly on the first attempt before that worker existed,
+confirming the coverage gate works as specified against real data, not
+just in unit tests. Final database state verified clean afterward: David's
+real worker and the one real completed task are the only rows left.
+
 ## Phase 3 regression check
 
 `scripts/e2e-escrow-testnet.ts` rerun after downgrading `@stellar/stellar-sdk`

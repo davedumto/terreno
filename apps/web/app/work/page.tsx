@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 interface WorkTask {
   task_id: string;
@@ -49,9 +50,9 @@ export default function WorkPage() {
     return (
       <main className="mx-auto max-w-md px-4 py-8 text-center">
         <p className="text-neutral-700">You need to sign in first.</p>
-        <a href="/join" className="mt-4 inline-block text-blue-600 underline">
+        <Link href="/join" className="mt-4 inline-block text-blue-600 underline">
           Go to sign in
-        </a>
+        </Link>
       </main>
     );
   }
@@ -84,7 +85,7 @@ export default function WorkPage() {
             const minutesLeft = minutesUntil(task.deadline_at);
             return (
               <li key={task.task_id}>
-                <a
+                <Link
                   href={`/work/${task.task_id}`}
                   className="block rounded-lg border border-neutral-200 p-4 hover:border-neutral-300"
                 >
@@ -99,7 +100,7 @@ export default function WorkPage() {
                   <p className="mt-1 text-xs text-neutral-500">
                     {minutesLeft > 0 ? `${minutesLeft} min left` : "Deadline passed"}
                   </p>
-                </a>
+                </Link>
               </li>
             );
           })}

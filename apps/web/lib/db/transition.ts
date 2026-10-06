@@ -1,5 +1,6 @@
 import { and, DrizzleQueryError, eq } from "drizzle-orm";
-import type { LibSQLDatabase } from "drizzle-orm/libsql";
+import type { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
+import type { ResultSet } from "@libsql/client";
 import { tasks, taskEvents } from "./schema";
 import { ulid } from "ulid";
 
@@ -7,7 +8,17 @@ export type TaskStatus = (typeof tasks.$inferSelect)["status"];
 export type Task = typeof tasks.$inferSelect;
 export type TaskEventKind = (typeof taskEvents.$inferSelect)["kind"];
 
-type DB = LibSQLDatabase<Record<string, unknown>>;
+// The real common ancestor of both LibSQLDatabase and LibSQLTransaction
+// (confirmed by reading drizzle-orm's own libsql driver source), used
+// instead of either directly: their own full types don't structurally
+// match each other (a transaction's relational-schema type parameter is
+// inferred from the actual schema passed to drizzle(), not a generic
+// placeholder), so accepting a LibSQLDatabase | LibSQLTransaction union
+// would force every caller inside a db.transaction() callback to fight a
+// type mismatch instead of composing the way this function is designed to
+// (per its own doc comment below). Only .update()/.insert() are ever
+// called here, and those don't depend on the schema parameter at all.
+type DB = BaseSQLiteDatabase<"async", ResultSet, Record<string, unknown>>;
 
 export class TransitionError extends Error {
   constructor(

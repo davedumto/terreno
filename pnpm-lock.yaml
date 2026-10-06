@@ -159,6 +159,12 @@ importers:
       '@stellar/stellar-sdk':
         specifier: 16.3.1
         version: 16.3.1
+      '@x402/core':
+        specifier: 2.22.0
+        version: 2.22.0
+      '@x402/stellar':
+        specifier: 2.22.0
+        version: 2.22.0
       web:
         specifier: workspace:*
         version: link:../apps/web

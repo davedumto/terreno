@@ -10,8 +10,13 @@ export const TASK_PRICES_STROOPS: Record<TaskType, number> = {
   translate: 3_000_000,
 };
 
+// Verified against the live deployed escrow contract's instance storage
+// (FeeBps = 1000), not assumed from this constant alone; see
+// docs/decisions.md. fee = amount * FEE_BPS / FEE_DENOMINATOR, matching
+// contracts/escrow/src/lib.rs's own release() formula exactly.
 export const FEE_BPS = 1000; // 10%, max 2000 per spec section 8
 export const MAX_FEE_BPS = 2000;
+export const FEE_DENOMINATOR = 10_000;
 
 export const DEADLINE_MINUTES_MIN = 15;
 export const DEADLINE_MINUTES_MAX = 180;

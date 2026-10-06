@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 interface MeResponse {
   display_name: string;
@@ -58,9 +59,9 @@ export default function MePage() {
     return (
       <main className="mx-auto max-w-md px-4 py-8 text-center">
         <p className="text-neutral-700">You need to sign in first.</p>
-        <a href="/join" className="mt-4 inline-block text-blue-600 underline">
+        <Link href="/join" className="mt-4 inline-block text-blue-600 underline">
           Go to sign in
-        </a>
+        </Link>
       </main>
     );
   }
