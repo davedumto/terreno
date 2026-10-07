@@ -22,13 +22,9 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-// This test file only exercises validation and coverage-check failures,
-// all of which return before the route ever calls processX402Request.
-// Mocked here (rather than letting the route's real import run) because
-// @/lib/x402 pulls in @x402/next, which internally imports "next/server"
-// without a file extension; Next's own bundler tolerates that, but
-// Vitest's plain Node ESM resolution cannot follow it, failing the whole
-// suite with an unrelated resolution error before any test runs.
+// Same reasoning as verify-place/route.test.ts: this file only exercises
+// validation and coverage-check failures, which all return before the
+// shared createPaidTask() helper ever calls processX402Request.
 vi.mock("@/lib/x402", () => ({
   processX402Request: vi.fn(() => {
     throw new Error("processX402Request should not be called in this test file");
@@ -53,21 +49,20 @@ async function insertActiveWorker(country: string, city: string): Promise<void> 
 }
 
 const VALID_BODY = {
-  location: { country: "NG", city: "enugu", address: "12 Ogui Road", lat: 6.44, lng: 7.5 },
-  place_name: "Mama Nkechi Provisions",
-  question: "Is the shop open right now and does it look like an active business?",
-  deadline_minutes: 60,
+  location: { country: "CL", city: "santiago", address: "Lider, Av. Providencia 1234" },
+  item: "1 kg rice, cheapest brand",
+  deadline_minutes: 90,
 };
 
 function postRequest(body: unknown): NextRequest {
-  return new NextRequest("http://localhost/api/tasks/verify-place", {
+  return new NextRequest("http://localhost/api/tasks/check-price", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
 }
 
-describe("POST /api/tasks/verify-place", () => {
+describe("POST /api/tasks/check-price", () => {
   beforeEach(async () => {
     testDb = await freshDb();
   });
@@ -76,8 +71,7 @@ describe("POST /api/tasks/verify-place", () => {
     const res = await POST(postRequest("not json"));
 
     expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.error).toBe("invalid_input");
+    expect((await res.json()).error).toBe("invalid_input");
   });
 
   it("rejects a body missing required fields", async () => {
@@ -90,76 +84,36 @@ describe("POST /api/tasks/verify-place", () => {
     expect(body.details.length).toBeGreaterThan(0);
   });
 
+  it("rejects a body missing item", async () => {
+    const { item: _item, ...withoutItem } = VALID_BODY;
+    const res = await POST(postRequest(withoutItem));
+
+    expect(res.status).toBe(400);
+  });
+
   it("rejects deadline_minutes outside 15-180 with a 400, not a 500", async () => {
-    const res = await POST(postRequest({ ...VALID_BODY, deadline_minutes: 5 }));
+    const res = await POST(postRequest({ ...VALID_BODY, deadline_minutes: 200 }));
 
     expect(res.status).toBe(400);
   });
 
   it("rejects an unsupported country before touching coverage or payment", async () => {
     const res = await POST(
-      postRequest({
-        ...VALID_BODY,
-        location: { ...VALID_BODY.location, country: "US" },
-      }),
+      postRequest({ ...VALID_BODY, location: { ...VALID_BODY.location, country: "US" } }),
     );
 
     expect(res.status).toBe(400);
   });
 
   it("returns 409 no_coverage for a valid body with no active workers in that city", async () => {
-    // No workers inserted at all.
     const res = await POST(postRequest(VALID_BODY));
 
     expect(res.status).toBe(409);
-    const body = await res.json();
-    expect(body.error).toBe("no_coverage");
+    expect((await res.json()).error).toBe("no_coverage");
   });
 
   it("returns 409 no_coverage when only 1 active worker exists (live city needs >= 2)", async () => {
-    await insertActiveWorker("NG", "enugu");
-
-    const res = await POST(postRequest(VALID_BODY));
-
-    expect(res.status).toBe(409);
-    expect((await res.json()).error).toBe("no_coverage");
-  });
-
-  it("returns 409 no_coverage when the 2 active workers are in a different city", async () => {
-    await insertActiveWorker("NG", "lagos");
-    await insertActiveWorker("NG", "lagos");
-
-    const res = await POST(postRequest(VALID_BODY));
-
-    expect(res.status).toBe(409);
-    expect((await res.json()).error).toBe("no_coverage");
-  });
-
-  it("does not count paused or banned workers toward coverage", async () => {
-    await testDb.insert(workers).values([
-      {
-        id: ulid(),
-        displayName: "Paused Worker",
-        walletAddress: `C${ulid()}`,
-        passkeyCredentialId: ulid(),
-        country: "NG",
-        city: "enugu",
-        languages: ["en"],
-        status: "paused",
-        createdAt: Date.now(),
-      },
-      {
-        id: ulid(),
-        displayName: "Banned Worker",
-        walletAddress: `C${ulid()}`,
-        passkeyCredentialId: ulid(),
-        country: "NG",
-        city: "enugu",
-        languages: ["en"],
-        status: "banned",
-        createdAt: Date.now(),
-      },
-    ]);
+    await insertActiveWorker("CL", "santiago");
 
     const res = await POST(postRequest(VALID_BODY));
 
@@ -168,8 +122,8 @@ describe("POST /api/tasks/verify-place", () => {
   });
 
   it("is live once 2 real active workers exist in the matching city (confirmed by reaching past coverage, into env resolution for the x402 payment config)", async () => {
-    await insertActiveWorker("NG", "enugu");
-    await insertActiveWorker("NG", "enugu");
+    await insertActiveWorker("CL", "santiago");
+    await insertActiveWorker("CL", "santiago");
 
     // No real TREASURY_PUBLIC_KEY is set in this test environment, so
     // createPaidTask's own resourceConfigFor(...) call throws there --
@@ -179,8 +133,9 @@ describe("POST /api/tasks/verify-place", () => {
   });
 
   // Past the coverage check, the route calls processX402Request, which
-  // needs FACILITATOR_URL and a real facilitator round-trip to
-  // initialize. Covering create_task/release/refund and the full paid
-  // happy path is proven against real testnet (see scripts/
-  // e2e-escrow-testnet.ts and docs/proof.md), not mocked here.
+  // needs FACILITATOR_URL and a real facilitator round-trip to initialize.
+  // The full paid happy path is proven against real testnet for
+  // verify_place (see scripts/e2e-worker-flow-testnet.ts and
+  // docs/proof.md); check_price shares the exact same createPaidTask()
+  // implementation, not a separate, independently-fallible code path.
 });
