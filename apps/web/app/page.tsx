@@ -21,50 +21,64 @@ const STEPS = [
 
 export default function HomePage() {
   return (
-    <main className="mx-auto max-w-2xl px-4 py-16 sm:py-24">
-      <p className="font-mono text-[.75rem] font-bold uppercase tracking-[.22em] text-muted2">
-        Agent-to-human payments · Testnet
-      </p>
-      <h1 className="mt-2 font-display text-[clamp(2rem,1.5rem+2.5vw,3.5rem)] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink">
-        Pay a real person, anywhere,{" "}
-        <em className="font-serif italic font-semibold tracking-[-0.02em] text-forest">to check.</em>
-      </h1>
-      <p className="mt-5 max-w-[56ch] text-lg leading-[1.6] text-muted">
-        Terreno lets an AI agent pay someone, anywhere, in real USDC, to go see something in the
-        physical world and report back. No signup for the agent. No app password for the worker,
-        just a passkey. Money only moves when a real person actually answers.
-      </p>
+    <main className="bg-bg">
+      <section className="relative overflow-hidden bg-forest-ink">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-[8%] -top-[12%] select-none font-poster text-[42vw] leading-none text-white/[0.04] sm:text-[32vw]"
+        >
+          TERRENO
+        </span>
 
-      <div className="mt-8 flex flex-wrap gap-3">
-        <Link href="/join" className={buttonClasses({ variant: "sun" })}>
-          Earn by answering tasks
-        </Link>
-        <Link href="/work" className={buttonClasses({ variant: "outline" })}>
-          Browse open tasks
-        </Link>
-      </div>
+        <div className="relative mx-auto max-w-5xl px-6 py-20 sm:px-10 sm:py-32">
+          <p className="font-mono text-[.8125rem] font-bold uppercase tracking-[.28em] text-mint">
+            Agent-to-human payments · Testnet
+          </p>
+          <h1 className="mt-5 max-w-4xl font-display text-[clamp(2.75rem,2rem+5vw,6rem)] font-extrabold leading-[0.98] tracking-[-0.03em] text-white">
+            Pay a real person,
+            <br />
+            anywhere, <em className="font-serif italic font-semibold tracking-[-0.02em] text-lime">to check.</em>
+          </h1>
+          <p className="mt-8 max-w-[52ch] text-xl leading-[1.6] text-white/80">
+            Terreno lets an AI agent pay someone, anywhere, in real USDC, to go see something in
+            the physical world and report back. No signup for the agent. No app password for the
+            worker, just a passkey. Money only moves when a real person actually answers.
+          </p>
 
-      <section className="mt-16">
+          <div className="mt-10 flex flex-wrap gap-4">
+            <Link href="/join" className={buttonClasses({ variant: "sun", size: "lg" })}>
+              Earn by answering tasks
+            </Link>
+            <Link href="/work" className={buttonClasses({ variant: "ghost", size: "lg" })}>
+              Browse open tasks
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-5xl px-6 py-20 sm:px-10 sm:py-28">
         <p className="font-mono text-[.75rem] font-bold uppercase tracking-[.22em] text-muted2">
           How it works
         </p>
-        <ol className="mt-4 flex flex-col gap-6">
+        <ol className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-3">
           {STEPS.map((step) => (
-            <li key={step.number} className="flex gap-4 rounded-lg border border-line bg-surface p-5">
-              <span className="font-mono text-sm font-bold text-muted2">{step.number}</span>
-              <div>
-                <h2 className="font-display text-base font-bold text-ink">{step.title}</h2>
-                <p className="mt-1 text-sm leading-[1.6] text-muted">{step.body}</p>
-              </div>
+            <li key={step.number} className="rounded-lg border border-line bg-surface p-7">
+              <span className="font-display text-4xl font-extrabold text-lime">{step.number}</span>
+              <h2 className="mt-4 font-display text-xl font-bold text-ink">{step.title}</h2>
+              <p className="mt-2 text-sm leading-[1.6] text-muted">{step.body}</p>
             </li>
           ))}
         </ol>
       </section>
 
-      <p className="mt-16 text-center text-xs text-muted2">
-        Every payment is a real Stellar transaction, verifiable on-chain. Built for the Stellar
-        Passport &quot;Find Your Way&quot; hackathon.
-      </p>
+      <section className="border-t border-line bg-surface">
+        <div className="mx-auto max-w-5xl px-6 py-12 text-center sm:px-10">
+          <p className="text-sm text-muted2">
+            Every payment is a real Stellar transaction, verifiable on-chain. Built for the
+            Stellar Passport &quot;Find Your Way&quot; hackathon.
+          </p>
+        </div>
+      </section>
     </main>
   );
 }
