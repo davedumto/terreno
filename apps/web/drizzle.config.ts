@@ -7,8 +7,8 @@ if (!databaseUrl) {
 
 export default defineConfig({
   dialect: "turso",
-  schema: "./lib/db/schema.ts",
-  out: "./lib/db/migrations",
+  schema: "../../packages/shared/src/db/schema.ts",
+  out: "../../packages/shared/src/db/migrations",
   dbCredentials: {
     url: databaseUrl,
     authToken: process.env.DATABASE_AUTH_TOKEN,
