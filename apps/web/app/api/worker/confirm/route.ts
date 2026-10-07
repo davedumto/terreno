@@ -7,6 +7,8 @@ import { db } from "@/lib/db";
 import { workers } from "@/lib/db/schema";
 import { setSessionCookie, signSession } from "@/lib/session";
 import { verifyWorkerWallet, WalletVerificationError } from "@/lib/worker-wallet";
+import { generateLinkCode } from "@/lib/telegram";
+import { requireEnv } from "@/lib/env";
 
 function isUniqueConstraintViolation(err: unknown): boolean {
   if (!(err instanceof DrizzleQueryError)) {
@@ -75,8 +77,16 @@ export async function POST(req: NextRequest): Promise<Response> {
     throw err;
   }
 
+  // SPEC.md section 10 step 3: /join's next screen needs this link to show
+  // "Connect Telegram". Generated here, not lazily on a later request, since
+  // this is the one moment the newly-created worker row and its id are both
+  // already in hand -- a separate endpoint would just re-look up the same
+  // worker by session a few seconds later for no benefit.
+  const code = await generateLinkCode(db, workerId);
+  const telegramLink = `https://t.me/${requireEnv("TELEGRAM_BOT_USERNAME")}?start=${code}`;
+
   const token = await signSession({ workerId });
-  const res = NextResponse.json({ worker_id: workerId });
+  const res = NextResponse.json({ worker_id: workerId, telegram_link: telegramLink });
   setSessionCookie(res, token);
   return res;
 }

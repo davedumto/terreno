@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { ulid } from "ulid";
 import * as schema from "@terreno/shared/db/schema";
 import { tasks, taskEvents, workers } from "@terreno/shared/db/schema";
@@ -25,6 +25,29 @@ vi.mock("@terreno/shared/escrow", () => ({
     adminSecretKey: "S_TEST",
     treasurySecretKey: "S_TEST",
   }),
+}));
+
+// Typed with real positional params (not `unknown[]`), so a later
+// `.mock.calls[0]` destructure gets the actual argument types back instead
+// of `unknown` -- same reasoning as apps/web/lib/create-paid-task.test.ts's
+// identically-shaped mocks.
+const notifyWorkersOfTaskMock = vi.fn(
+  async (
+    _db: unknown,
+    _bot: unknown,
+    _task: typeof tasks.$inferSelect,
+    _matchedWorkers: Array<typeof workers.$inferSelect>,
+  ) => undefined,
+);
+
+vi.mock("@terreno/shared/telegram", () => ({
+  getBot: () => ({ api: {} }),
+  notifyWorkersOfTask: (
+    db: unknown,
+    bot: unknown,
+    task: typeof tasks.$inferSelect,
+    matchedWorkers: Array<typeof workers.$inferSelect>,
+  ) => notifyWorkersOfTaskMock(db, bot, task, matchedWorkers),
 }));
 
 const {
@@ -56,6 +79,7 @@ beforeEach(async () => {
   unassignMock.mockClear().mockResolvedValue({ txHash: "UNASSIGNTX1" });
   refundMock.mockClear().mockResolvedValue({ txHash: "REFUNDTX1" });
   releaseMock.mockClear().mockResolvedValue({ txHash: "RELEASETX1" });
+  notifyWorkersOfTaskMock.mockClear().mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -63,13 +87,20 @@ afterEach(() => {
 });
 
 async function insertWorker(overrides: Partial<typeof workers.$inferInsert> = {}) {
+  const id = ulid();
   const [row] = await testDb
     .insert(workers)
     .values({
-      id: ulid(),
+      id,
       displayName: "Chidi",
       walletAddress: `C${ulid()}`,
       passkeyCredentialId: ulid(),
+      // matchWorkers() (sweepUnclaimedNotify's own real dependency, used
+      // from @terreno/shared/routing starting this segment) requires a
+      // linked Telegram chat; every pre-existing test in this file inserts
+      // workers only for escrow-side jobs that never call matchWorkers, so
+      // this default didn't matter before now.
+      telegramChatId: `chat-${id}`,
       country: "NG",
       city: "enugu",
       languages: ["en"],
@@ -311,10 +342,121 @@ describe("sweepUnreleasedSubmissions", () => {
   });
 });
 
-describe("sweepUnclaimedNotify and sweepPendingCallbacks (no-ops)", () => {
-  it("do nothing and never throw", async () => {
-    await expect(sweepUnclaimedNotify(testDb)).resolves.toBeUndefined();
+describe("sweepPendingCallbacks (no-op)", () => {
+  it("does nothing and never throws", async () => {
     await expect(sweepPendingCallbacks(testDb)).resolves.toBeUndefined();
+  });
+});
+
+async function insertFirstWaveNotifiedEvent(taskId: string, workerIds: string[]): Promise<void> {
+  await testDb.insert(taskEvents).values({
+    id: ulid(),
+    taskId,
+    kind: "notified",
+    data: { workerIds },
+    createdAt: Date.now(),
+  });
+}
+
+describe("sweepUnclaimedNotify", () => {
+  const TEN_MINUTES_MS = 10 * 60 * 1000;
+
+  it("skips a task that opened less than 10 minutes ago", async () => {
+    await insertWorker();
+    const task = await insertTask({ status: "open", createdAt: Date.now() - 1000 });
+
+    await sweepUnclaimedNotify(testDb);
+
+    expect(notifyWorkersOfTaskMock).not.toHaveBeenCalled();
+    const events = await testDb.select().from(taskEvents).where(eq(taskEvents.taskId, task.id));
+    expect(events).toHaveLength(0);
+  });
+
+  it("notifies and records second_wave_notified for an open task past 10 minutes with no prior second wave", async () => {
+    const worker = await insertWorker();
+    const task = await insertTask({ status: "open", createdAt: Date.now() - TEN_MINUTES_MS - 1000 });
+    await insertFirstWaveNotifiedEvent(task.id, []);
+
+    await sweepUnclaimedNotify(testDb);
+
+    expect(notifyWorkersOfTaskMock).toHaveBeenCalledTimes(1);
+    const [, , notifiedTask, matchedWorkers] = notifyWorkersOfTaskMock.mock.calls[0] ?? [];
+    expect(notifiedTask?.id).toBe(task.id);
+    expect(matchedWorkers?.map((w) => w.id)).toEqual([worker.id]);
+
+    const events = await testDb
+      .select()
+      .from(taskEvents)
+      .where(and(eq(taskEvents.taskId, task.id), eq(taskEvents.kind, "second_wave_notified")));
+    expect(events).toHaveLength(1);
+    expect(events[0]?.data).toEqual({ workerIds: [worker.id] });
+  });
+
+  it("excludes first-wave-notified workers from the second wave's own matching", async () => {
+    const firstWaveWorker = await insertWorker();
+    const secondWaveWorker = await insertWorker();
+    const task = await insertTask({ status: "open", createdAt: Date.now() - TEN_MINUTES_MS - 1000 });
+    await insertFirstWaveNotifiedEvent(task.id, [firstWaveWorker.id]);
+
+    await sweepUnclaimedNotify(testDb);
+
+    const [, , , matchedWorkers] = notifyWorkersOfTaskMock.mock.calls[0] ?? [];
+    expect(matchedWorkers?.map((w) => w.id)).toEqual([secondWaveWorker.id]);
+  });
+
+  it("does not re-notify a task that already has a second_wave_notified event", async () => {
+    const task = await insertTask({ status: "open", createdAt: Date.now() - TEN_MINUTES_MS - 1000 });
+    await testDb.insert(taskEvents).values({
+      id: ulid(),
+      taskId: task.id,
+      kind: "second_wave_notified",
+      data: { workerIds: [] },
+      createdAt: Date.now(),
+    });
+
+    await sweepUnclaimedNotify(testDb);
+
+    expect(notifyWorkersOfTaskMock).not.toHaveBeenCalled();
+  });
+
+  it("still records second_wave_notified (with an empty worker list) when nobody new is eligible", async () => {
+    // No workers inserted at all: matchWorkers() legitimately returns [].
+    const task = await insertTask({ status: "open", createdAt: Date.now() - TEN_MINUTES_MS - 1000 });
+
+    await sweepUnclaimedNotify(testDb);
+
+    expect(notifyWorkersOfTaskMock).toHaveBeenCalledTimes(1);
+    const events = await testDb
+      .select()
+      .from(taskEvents)
+      .where(and(eq(taskEvents.taskId, task.id), eq(taskEvents.kind, "second_wave_notified")));
+    expect(events).toHaveLength(1);
+    expect(events[0]?.data).toEqual({ workerIds: [] });
+  });
+
+  it("logs a failure event and keeps processing other tasks when notifyWorkersOfTask throws for one task", async () => {
+    const taskA = await insertTask({ status: "open", createdAt: Date.now() - TEN_MINUTES_MS - 1000 });
+    const taskB = await insertTask({ status: "open", createdAt: Date.now() - TEN_MINUTES_MS - 2000 });
+    notifyWorkersOfTaskMock.mockRejectedValueOnce(new Error("telegram api down"));
+
+    await sweepUnclaimedNotify(testDb);
+
+    expect(notifyWorkersOfTaskMock).toHaveBeenCalledTimes(2);
+    const failuresA = await failureCount(testDb, taskA.id, "second_wave_notify");
+    const failuresB = await failureCount(testDb, taskB.id, "second_wave_notify");
+    // Order isn't guaranteed; exactly one of the two failed and logged.
+    expect(failuresA + failuresB).toBe(1);
+  });
+
+  it("does not touch a claimed, submitted, completed, or refunded task", async () => {
+    await insertTask({ status: "claimed", createdAt: Date.now() - TEN_MINUTES_MS - 1000 });
+    await insertTask({ status: "submitted", createdAt: Date.now() - TEN_MINUTES_MS - 1000 });
+    await insertTask({ status: "completed", createdAt: Date.now() - TEN_MINUTES_MS - 1000 });
+    await insertTask({ status: "refunded", createdAt: Date.now() - TEN_MINUTES_MS - 1000 });
+
+    await sweepUnclaimedNotify(testDb);
+
+    expect(notifyWorkersOfTaskMock).not.toHaveBeenCalled();
   });
 });
 

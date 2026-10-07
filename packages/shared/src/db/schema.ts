@@ -96,6 +96,7 @@ export const taskEvents = sqliteTable(
         "paid",
         "escrowed",
         "notified",
+        "second_wave_notified",
         "claimed",
         "claim_expired",
         "submitted",
@@ -112,7 +113,7 @@ export const taskEvents = sqliteTable(
     index("task_events_task_id_idx").on(t.taskId),
     check(
       "task_events_kind_check",
-      sql`${t.kind} in ('paid', 'escrowed', 'notified', 'claimed', 'claim_expired', 'submitted', 'released', 'refunded', 'policy_rejected', 'failed')`,
+      sql`${t.kind} in ('paid', 'escrowed', 'notified', 'second_wave_notified', 'claimed', 'claim_expired', 'submitted', 'released', 'refunded', 'policy_rejected', 'failed')`,
     ),
   ],
 );

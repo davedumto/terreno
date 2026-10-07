@@ -11,7 +11,10 @@
     "./escrow": "./src/escrow.ts",
     "./db": "./src/db/index.ts",
     "./db/schema": "./src/db/schema.ts",
-    "./db/transition": "./src/db/transition.ts"
+    "./db/transition": "./src/db/transition.ts",
+    "./reputation": "./src/reputation.ts",
+    "./routing": "./src/routing.ts",
+    "./telegram": "./src/telegram.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -22,6 +25,7 @@
     "@libsql/client": "^0.18.0",
     "@stellar/stellar-sdk": "16.3.1",
     "drizzle-orm": "^0.45.3",
+    "grammy": "^1.46.0",
     "ulid": "3.0.2",
     "zod": "^4.6.5"
   },

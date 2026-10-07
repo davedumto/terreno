@@ -5,7 +5,7 @@ import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { eq } from "drizzle-orm";
 import * as schema from "@/lib/db/schema";
-import { workers } from "@/lib/db/schema";
+import { telegramLinks, workers } from "@/lib/db/schema";
 
 let testDb: Awaited<ReturnType<typeof freshDb>>;
 
@@ -49,6 +49,7 @@ const VALID_BODY = {
 beforeEach(() => {
   vi.stubEnv("APP_URL", APP_URL);
   vi.stubEnv("SESSION_SECRET", "test-session-secret-at-least-32-bytes-long");
+  vi.stubEnv("TELEGRAM_BOT_USERNAME", "terreno_test_bot");
   verifyWorkerWalletMock.mockReset();
   verifyWorkerWalletMock.mockResolvedValue(undefined);
 });
@@ -82,6 +83,18 @@ describe("POST /api/worker/confirm", () => {
     expect(worker?.walletAddress).toBe(CONTRACT_ID);
     expect(worker?.status).toBe("active");
     expect(verifyWorkerWalletMock).toHaveBeenCalledWith(CONTRACT_ID);
+  });
+
+  it("returns a Telegram deep link with a real, usable one-time code", async () => {
+    const res = await POST(confirmRequest(VALID_BODY));
+
+    const body = await res.json();
+    expect(body.telegram_link).toMatch(/^https:\/\/t\.me\/terreno_test_bot\?start=.+$/);
+
+    const code = new URL(body.telegram_link).searchParams.get("start");
+    const [link] = await testDb.select().from(telegramLinks).where(eq(telegramLinks.code, code ?? ""));
+    expect(link?.workerId).toBe(body.worker_id);
+    expect(link?.expiresAt).toBeGreaterThan(Date.now());
   });
 
   it("rejects a request with no Origin header", async () => {

@@ -11,11 +11,14 @@ import {
   escrowConfigFromEnv,
 } from "@terreno/shared/escrow";
 import { requireEnv } from "@terreno/shared/env";
+import { matchWorkers } from "@terreno/shared/routing";
+import { getBot, notifyWorkersOfTask } from "@terreno/shared/telegram";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import { ulid } from "ulid";
 
 const SWEEP_INTERVAL_MS = Number(process.env.SWEEP_INTERVAL_MS ?? 30_000);
 const ESCROW_RETRY_LIMIT = 3;
+const UNCLAIMED_NOTIFY_AFTER_MS = 10 * 60 * 1000;
 
 export type DB = LibSQLDatabase<Schema>;
 
@@ -122,15 +125,67 @@ export async function sweepExpiredClaims(db: DB): Promise<void> {
 }
 
 /**
- * SPEC.md section 16, job 3: open tasks with no claim after 10 minutes,
- * notify the next 10 workers, once. Genuinely a no-op today: there is no
- * notification channel built yet (Telegram per the spec, or any
- * alternative) for this job to push through. Left as an explicit, honest
- * no-op rather than a fake implementation that writes a notified event
- * with nothing real behind it.
+ * All worker ids notifyWorkersOfTask() has ever recorded a notifications
+ * row for, across both the first wave (sent by createPaidTask right after
+ * the task opens) and -- once this job itself has run for this task -- the
+ * second wave too. Used both to exclude the first wave from the second
+ * wave's own matchWorkers() call, and to build the second_wave_notified
+ * event's own worker-id list below.
  */
-export async function sweepUnclaimedNotify(_db: DB): Promise<void> {
-  // No-op: see doc comment above.
+async function alreadyNotifiedWorkerIds(db: DB, taskId: string): Promise<string[]> {
+  const rows = await db
+    .select({ data: taskEvents.data })
+    .from(taskEvents)
+    .where(and(eq(taskEvents.taskId, taskId), eq(taskEvents.kind, "notified")));
+  return rows.flatMap((row) => (row.data as { workerIds?: string[] } | null)?.workerIds ?? []);
+}
+
+/**
+ * SPEC.md section 16, job 3: open tasks with no claim after 10 minutes,
+ * notify the next 10 workers, once. "Once" is enforced by a dedicated
+ * second_wave_notified task_events kind (docs/decisions.md, 2026-10-07):
+ * a task that already has one is skipped on every later tick, rather than
+ * re-notifying every 30s for as long as it stays open and unclaimed.
+ */
+export async function sweepUnclaimedNotify(db: DB): Promise<void> {
+  const bot = getBot();
+  const cutoff = Date.now() - UNCLAIMED_NOTIFY_AFTER_MS;
+  const candidates = await db
+    .select()
+    .from(tasks)
+    .where(and(eq(tasks.status, "open"), lt(tasks.createdAt, cutoff)));
+
+  for (const task of candidates) {
+    const secondWaveEvents = await db
+      .select()
+      .from(taskEvents)
+      .where(and(eq(taskEvents.taskId, task.id), eq(taskEvents.kind, "second_wave_notified")));
+    if (secondWaveEvents.length > 0) {
+      continue;
+    }
+
+    const firstWaveWorkerIds = await alreadyNotifiedWorkerIds(db, task.id);
+    const matched = await matchWorkers(db, task, { excludeWorkerIds: firstWaveWorkerIds });
+
+    // Records second_wave_notified even when matched is empty (nobody new
+    // eligible in this city right now): SPEC.md's "once" reads as one
+    // attempt per task, not "retry until someone is found." Without this,
+    // a task with no spare workers would get re-checked and re-queried
+    // every 30s tick forever instead of once, for no behavioral gain --
+    // the task is still fully visible to anyone browsing /work regardless.
+    try {
+      await notifyWorkersOfTask(db, bot, task, matched);
+      await db.insert(taskEvents).values({
+        id: ulid(),
+        taskId: task.id,
+        kind: "second_wave_notified",
+        data: { workerIds: matched.map((w) => w.id) },
+        createdAt: Date.now(),
+      });
+    } catch (err) {
+      await logFailure(db, task.id, "second_wave_notify", err);
+    }
+  }
 }
 
 /**

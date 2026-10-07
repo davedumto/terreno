@@ -10,6 +10,8 @@ import { createTask as escrowCreateTask, escrowConfigFromEnv, taskIdToEscrowKey 
 import { requireEnv } from "@/lib/env";
 import { generateTaskToken, hashTaskToken } from "@/lib/task-token";
 import { ulid } from "ulid";
+import { matchWorkers } from "@/lib/routing";
+import { getBot, notifyWorkersOfTask } from "@/lib/telegram";
 
 interface TaskLocation {
   country: string;
@@ -168,6 +170,21 @@ export async function createPaidTask<T extends PaidTaskInput>(
   }
 
   const opened = await transition(db, task, "open", { escrowTxHash });
+
+  // SPEC.md section 2: the agent polls separately from the worker side --
+  // nothing here should make a successful, already-paid-and-escrowed task
+  // return an error to the agent just because Telegram is slow or down.
+  // notifyWorkersOfTask itself already swallows a per-worker send failure;
+  // this guards the one failure mode that isn't per-worker (matchWorkers
+  // throwing, or TELEGRAM_BOT_TOKEN being unset). If nobody gets notified,
+  // the sweeper's second wave (sweepUnclaimedNotify) retries 10 minutes
+  // later, and the task is already visible in /work regardless.
+  try {
+    const matched = await matchWorkers(db, opened);
+    await notifyWorkersOfTask(db, getBot(), opened, matched);
+  } catch (err) {
+    console.error("failed to notify workers of new task", opened.id, err);
+  }
 
   return NextResponse.json(
     {

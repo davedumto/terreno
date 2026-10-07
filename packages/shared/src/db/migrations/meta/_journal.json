@@ -15,6 +15,13 @@
       "when": 1791250746763,
       "tag": "0001_bent_johnny_blaze",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791337621428,
+      "tag": "0002_classy_reptil",
+      "breakpoints": true
     }
   ]
 }
