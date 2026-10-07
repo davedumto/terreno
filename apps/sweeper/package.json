@@ -14,7 +14,8 @@
   "dependencies": {
     "@terreno/shared": "workspace:*",
     "drizzle-orm": "^0.45.3",
-    "@libsql/client": "^0.18.0"
+    "@libsql/client": "^0.18.0",
+    "ulid": "3.0.2"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

@@ -32,6 +32,9 @@ importers:
       drizzle-orm:
         specifier: ^0.45.3
         version: 0.45.3(@libsql/client@0.18.0)
+      ulid:
+        specifier: 3.0.2
+        version: 3.0.2
     devDependencies:
       '@types/node':
         specifier: ^22.10.2
